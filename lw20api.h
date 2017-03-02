@@ -1,10 +1,10 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 Arudino API V0.0.0
+// LightWare LW20 API V0.0.0
 //
 // First Pass.
 // Support for Arduino, PI, Windows, Linux (8bit, 32bit, 64bit).
 // Using minimal C++.
-// Single header, no dependencies beyond c lib.
+// Single header, no dependencies beyond c lib. Only memset?
 // No dynamic memory allocations.
 //
 // Supported LightWare Products:
@@ -12,81 +12,112 @@
 //-------------------------------------------------------------------------
 //
 // Communication must be decoupled.
-// We want to support any buffer based communication: (TCP, UDP, Serial, etc...)
-// Callback functions for reading and writing.
-// Virtual class that has functions for read write
-//
-// Non-blocking can also use callbacks.
-
-// Feed/Extract system, can only be non-blocking.
-
-// Queue Command - Get error status.
-// Update - Get command results, and error status.
-// How to get command results?
-
+// We want to support any byte based communication: (TCP, UDP, Serial, I2c, etc...)
+// Callback functions for reading and writing. (At the moment just extrnally declared c functions.)
 // Allow C++ object method based callbacks?
-
-// Streaming into a user specified buffer?
-
-// You can use any method within its own thread.
-
+// Maybe virtual class that has functions for read write
+//
+// Event based. Layered usage approach.
+//
+// TODO: Need to fix the horrible way to declare and deal with new commands.
+// Don't want to waste mem/perf for tables, so probably just codespace with
+// macros to help quell the madness.
+//
+// TOOD: Append lw20 to all functions for "namespacing"?
 //-------------------------------------------------------------------------
 
 #ifndef LIGHTWARE_INCLUDE_LW20API_H
 #define LIGHTWARE_INCLUDE_LW20API_H
 
-// Return false on error, cancel LW20 IO operation.
-// Write Size number of bytes from Buffer.
-bool comsWrite(uint8_t* Buffer, int32_t Size);
-// Read Size number of bytes to Buffer.
-bool comsRead(uint8_t* Buffer, int32_t Size);
-// Get number of bytes available to read.
-int32_t comsReadAvailable();
+/*
+// Arduino samples
+int32_t lw20_comsWrite(uint8_t* Buffer, int32_t Size)
+{
+	LW20_SERIAL.write(Buffer, Size);
 
-#define LW20_FORCE_MMI_MODE_CHAR  '`'
-#define LW20_FORCE_HMI_MODE_CHAR  27
+	return 0;
+}
 
-#define LW20_QUERY    "?"
-#define LW20_SET      "#"
-#define LW20_STREAM   "$"
-#define LW20_SAVE     "%"
-#define LW20_TERMINAL "\r"
+int32_t lw20_comsRead(uint8_t* Buffer, int32_t Size)
+{
+	int c = LW20_SERIAL.read();
 
-#define LW20_CMD_QUERY(ID)  (LW20_QUERY ID LW20_TERMINAL)
-#define LW20_CMD_SET(ID)    (LW20_SET ID LW20_TERMINAL)
+	if (c == -1)
+		return 0;
 
-#define LW20_ID_PRODUCT         					"p"
+	Buffer[0] = c;
 
-#define LW20_ID_LASER_MODE      					"lm"
-#define LW20_ID_LASER_DISTANCE_FIRST  		"ldf"
-#define LW20_ID_LASER_DISTANCE_LAST	  		"ldl"
-#define LW20_ID_LASER_OFFSET							"lo"
+	return 1;
+}
+
+int32_t lw20_getMillis()
+{
+	return millis();
+}
+
+void lw20_sleep(int32_t Milliseconds)
+{
+	delay(Milliseconds);
+}
+*/
+
+//-------------------------------------------------------------------------
+
+#define LW20_FORCE_MMI_MODE_CHAR	'`'
+#define LW20_FORCE_HMI_MODE_CHAR	'\0x1B'
+
+#define LW20_QUERY		"?"
+#define LW20_SET		"#"
+#define LW20_STREAM		"$"
+#define LW20_SAVE		"%"
+#define LW20_TERMINAL	"\r"
+
+#define LW20_CMD_QUERY(ID)	(LW20_QUERY ID LW20_TERMINAL)
+#define LW20_CMD_SET(ID)	(LW20_SET ID LW20_TERMINAL)
+
+#define LW20_ID_PRODUCT						"p"
+
+#define LW20_ID_LASER_MODE					"lm"
+#define LW20_ID_LASER_FIRING				"lf"
+#define LW20_ID_LASER_TEMPERATURE			"lt"
+#define LW20_ID_LASER_BACKGROUND_NOISE		"ln"
+#define LW20_ID_LASER_DISTANCE_FIRST		"ldf"
+#define LW20_ID_LASER_DISTANCE_LAST			"ldl"
+#define LW20_ID_LASER_SIGNAL_STRENGTH_FIRST	"lhf"
+#define LW20_ID_LASER_SIGNAL_STRENGTH_LAST	"lhl"
+#define LW20_ID_LASER_OFFSET				"lo"
 #define LW20_ID_LASER_ALARM_A_DISTANCE		"laa"
 #define LW20_ID_LASER_ALARM_B_DISTANCE		"lab"
 #define LW20_ID_LASER_ALARM_HYSTERESIS		"lah"
 #define LW20_ID_LASER_ENCODING_PATTERN		"le"
 #define LW20_ID_LASER_LOST_CONFIRMATIONS	"lc"
-#define LW20_ID_LASER_GAIN_BOOT						"lb"
+#define LW20_ID_LASER_GAIN_BOOT				"lb"
 
-#define LW20_SERVO_CONNECTED							"sc"
-#define LW20_SERVO_POSITION								"sp"
-#define LW20_SERVO_LAG 										"sl"
-#define LW20_SERVO_STEPS									"sr"
-#define LW20_SERVO_DIR										"st"
-#define LW20_SERVO_SCAN										"ss"
-#define LW20_SERVO_PWM_MIN								"swl"
-#define LW20_SERVO_PWM_MAX								"swh"
-#define LW20_SERVO_PWM_SCALE							"sws"
-#define LW20_SERVO_FOV_LOW								"sfl"
-#define LW20_SERVO_FOV_HIGH								"sfh"
-#define LW20_SERVO_ALARM_A_LOW						"sal"
-#define LW20_SERVO_ALARM_A_HIGH						"sah"
-#define LW20_SERVO_ALARM_B_LOW						"sbl"
-#define LW20_SERVO_ALARM_B_HIGH						"sbh"
+#define LW20_ID_SERVO_CONNECTED				"sc"
+#define LW20_ID_SERVO_POSITION				"sp"
+#define LW20_ID_SERVO_LAG					"sl"
+#define LW20_ID_SERVO_STEPS					"sr"
+#define LW20_ID_SERVO_DIR					"st"
+#define LW20_ID_SERVO_SCAN					"ss"
+#define LW20_ID_SERVO_PWM_MIN				"swl"
+#define LW20_ID_SERVO_PWM_MAX				"swh"
+#define LW20_ID_SERVO_PWM_SCALE				"sws"
+#define LW20_ID_SERVO_FOV_LOW				"sfl"
+#define LW20_ID_SERVO_FOV_HIGH				"sfh"
+#define LW20_ID_SERVO_ALARM_A_LOW			"sal"
+#define LW20_ID_SERVO_ALARM_A_HIGH			"sah"
+#define LW20_ID_SERVO_ALARM_B_LOW			"sbl"
+#define LW20_ID_SERVO_ALARM_B_HIGH			"sbh"
 
-#define LW20_ID_COMS_BAUD_RATE  					"cb"
-#define LW20_ID_COMS_TAGGING							"ct"
-#define LW20_ID_COMS_I2C_ADDRESS					"ci"
+#define LW20_ID_ALARM_BOTH					"a"
+#define LW20_ID_ALARM_A						"aa"
+#define LW20_ID_ALARM_B						"ab"
+
+#define LW20_ID_COMS_BAUD_RATE  			"cb"
+#define LW20_ID_COMS_I2C_ADDRESS			"ci"
+#define LW20_ID_COMS_TAGGING				"ct"
+
+#define LW20_ID_ENERGY_POWER_CONSUMPTION	"e"
 
 //-------------------------------------------------------------------------
 // Define Public Types and Function Prototypes
@@ -101,10 +132,47 @@ enum lwCommand
 	LWC_PRODUCT,
 	
 	LWC_LASER_MODE,
+	LWC_LASER_FIRING,
+	LWC_LASER_TEMPERATURE,
+	LWC_LASER_BACKGROUND_NOISE,
 	LWC_LASER_DISTANCE_FIRST,
 	LWC_LASER_DISTANCE_LAST,
+	LWC_LASER_SIGNAL_STRENGTH_FIRST,
+	LWC_LASER_SIGNAL_STRENGTH_LAST,
+	LWC_LASER_OFFSET,
+	LWC_LASER_ALARM_A_DISTANCE,
+	LWC_LASER_ALARM_B_DISTANCE,
+	LWC_LASER_ALARM_HYSTERESIS,
+	LWC_LASER_ENCODING_PATTERN,
+	LWC_LASER_LOST_CONFIRMATIONS,
+	LWC_LASER_GAIN_BOOST,
+
+	LWC_SERVO_CONNECTED,
+	LWC_SERVO_SCANNING,
+	LWC_SERVO_POSITION,
+	LWC_SERVO_LAG,
+	LWC_SERVO_STEPS,
+	LWC_SERVO_DIR,
+	LWC_SERVO_SCAN,
+	LWC_SERVO_PWM_MIN,
+	LWC_SERVO_PWM_MAX,
+	LWC_SERVO_PWM_SCALE,
+	LWC_SERVO_FOV_LOW,
+	LWC_SERVO_FOV_HIGH,
+	LWC_SERVO_ALARM_A_LOW,
+	LWC_SERVO_ALARM_A_HIGH,
+	LWC_SERVO_ALARM_B_LOW,
+	LWC_SERVO_ALARM_B_HIGH,
+
+	LWC_ALARM_STATE_BOTH,
+	LWC_ALARM_STATE_A,
+	LWC_ALARM_STATE_B,
 
 	LWC_COMS_BAUD_RATE,
+	LWC_COMS_I2C_ADDRESS,
+	LWC_COMS_TAGGING,
+
+	LWC_ENERGY_POWER_CONSUMPTION,
 };
 
 enum lwPulseType
@@ -116,46 +184,108 @@ enum lwPulseType
 enum lwReturnFilter
 {
 	LWRF_MEDIAN		= 0,
-	LWRF_RAW 			= 1,	
-	LWRF_CLOSEST		= 2,
+	LWRF_RAW 		= 1,	
+	LWRF_CLOSEST	= 2,
 	LWRF_FURTHEST	= 3,
 };
 
 enum lwBaudRate
 {
 	LWBR_9600		= 0,
-	LWBR_19200	= 1,
-	LWBR_38400	= 2,
-	LWBR_57600	= 3,
-	LWBR_115200	= 4,
-	LWBR_230400	= 5,
-	LWBR_460800 = 6,
-	LWBR_921600 = 7,
+	LWBR_19200		= 1,
+	LWBR_38400		= 2,
+	LWBR_57600		= 3,
+	LWBR_115200		= 4,
+	LWBR_230400		= 5,
+	LWBR_460800		= 6,
+	LWBR_921600		= 7,
+};
+
+enum lwError
+{
+	LWE_NONE,
+	LWE_NOT_CONNECTED,
+	LWE_TIMEOUT,
+	LWE_NO_RESPONSE,
+	LWE_INVALID_VALUE,
+	LWE_OUTPUT_BUFFER_TOO_SMALL,
+};
+
+enum lwEventLoopResult
+{
+	LWELR_IO_WAIT,
+	LWELR_SLEEP,
+	LWELR_FEEDBACK,
+	LWELR_SEND,
+	LWELR_AGAIN,
+	LWELR_ERROR,
+	LWELR_TIMEOUT,
+	LWELR_COMPLETED,
+	LWELR_INITED,
+};
+
+enum lwInitState
+{
+	LWIS_SET_MMI,
+	LWIS_WAIT_MMI,
+	LWIS_STOP_STREAMING,
+	LWIS_WAIT_STOP_STREAMING,
+	LWIS_STOP_SCANNING,
+	LWIS_WAIT_STOP_SCANNING,
+	LWIS_FLUSH_BUFFER,
+	LWIS_GET_PRODUCT,
+	LWIS_WAIT_GET_PRODUCT,
+	LWIS_INITED,
 };
 
 struct lwLW20
 {
-	bool			active;	
-	char 			model[8];
-	float 		softwareVersion;
+	bool		active;
+	lwInitState	initState;
+
+	char 		model[8];
 	float 		firmwareVersion;
+	float 		softwareVersion;
+
 
 	uint8_t		packetBuf[32];
-	int 			packetLen = 0;
+	int 		packetLen;
+
+	// TODO: Need this?
+	lwError		error;
 };
 
 struct lwParser
 {
 	uint8_t*	packetBuf;
-	int 			packetLen = 0;
-	int 			packetIdx = 0;
-	int 			nextChar = 0;
-	int 			lexemeStart = 0;
-	int 			lexemeLength = 0;
+	int 		packetLen;
+	int 		packetIdx;
+	int 		nextChar;
+	int 		lexemeStart;
+	int 		lexemeLength;
+};
+
+struct lwCmdPacket
+{
+	uint8_t	buffer[32];
+	int32_t	length;
+};
+
+struct lwEventLoopUpdate
+{
+	lwLW20*		lw20;
+	uint8_t*	inputBuffer;
+	int32_t		inputBufferSize;
+	int32_t		bytesRead;
+	lwCmdPacket packet;
+	int32_t		timeMS; // TODO: Watch this.
 };
 
 #ifdef LW20_API_IMPLEMENTATION
 
+//-------------------------------------------------------------------------
+// Parsing.
+//-------------------------------------------------------------------------
 bool isCharNumber(int C)
 {
 	return ((C >= '0' && C <= '9') || C == '-' || C == '.');
@@ -214,11 +344,11 @@ bool expectParamDelimeter(lwParser* Parser)
 	return false;
 }
 
-bool expectCharLiterals(lwParser* Parser, const char* Ident)
+bool expectCharLiterals(lwParser* Parser, const char* Chars)
 {
-	while (*Ident != 0)
+	while (*Chars != 0)
 	{
-		if (Parser->nextChar == *Ident++)
+		if (Parser->nextChar == *Chars++)
 			getNextChar(Parser);
 		else
 			return false;
@@ -324,18 +454,46 @@ bool expectNumber(lwParser* Parser, float* Number)
 	return false;
 }
 
+bool parseResponseInt(lwParser* Parser, const char* ResponseString, int32_t* ResponseData)
+{
+	float value = 0;
+
+	if (!checkIdentSingle(Parser, ResponseString)) return false;
+	if (!expectPacketDelimeter(Parser)) return false;
+	if (!expectNumber(Parser, &value)) return false;
+
+	if (ResponseData)
+		*ResponseData = value;
+
+	return true;
+}
+
+bool parseResponseFloat(lwParser* Parser, const char* ResponseString, float* ResponseData)
+{
+	float value = 0;
+
+	if (!checkIdentSingle(Parser, ResponseString)) return false;
+	if (!expectPacketDelimeter(Parser)) return false;
+	if (!expectNumber(Parser, &value)) return false;
+
+	if (ResponseData)
+		*ResponseData = value;
+
+	return true;
+}
+
 bool parseResponse(lwLW20* Lw20, lwCommand ResponseType, void* ResponseData = 0)
 {
-	// TODO: Are we looking for a specific resp?
-	// TODO: Let streams through.
-
 	lwParser parser = {};
 	parser.packetBuf = Lw20->packetBuf;
 	parser.packetLen = Lw20->packetLen;
 	parser.packetIdx = 0;
+
+	// NOTE: We clear the packet here.
+	Lw20->packetLen = 0;
+
 	getNextChar(&parser);
 
-	// If we're looking for streaming, or a specific response, then handle that first.
 	if (!expectIdentifier(&parser)) return false;
 	
 	if (ResponseType == LWC_PRODUCT)
@@ -356,20 +514,9 @@ bool parseResponse(lwLW20* Lw20, lwCommand ResponseType, void* ResponseData = 0)
 		{
 			lwLW20* lw20 = (lwLW20*)ResponseData;
 			memcpy(lw20->model, model, 8);
+			lw20->firmwareVersion = firmwareVersion;
+			lw20->softwareVersion = softwareVersion;
 		}
-		
-		return true;
-	}
-	else if (ResponseType == LWC_COMS_BAUD_RATE)
-	{
-		float baudRate = 0;
-	
-		if (!checkIdentSingle(&parser, LW20_ID_COMS_BAUD_RATE)) return false;
-		if (!expectPacketDelimeter(&parser)) return false;
-		if (!expectNumber(&parser, &baudRate)) return false;
-
-		if (ResponseData)
-			*(int32_t*)ResponseData = baudRate;
 		
 		return true;
 	}
@@ -391,6 +538,19 @@ bool parseResponse(lwLW20* Lw20, lwCommand ResponseType, void* ResponseData = 0)
 		
 		return true;
 	}
+	
+	// Laser
+	else if (ResponseType == LWC_LASER_MODE) { return parseResponseInt(&parser, LW20_ID_LASER_MODE, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_FIRING) { return parseResponseInt(&parser, LW20_ID_LASER_FIRING, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_TEMPERATURE) { return parseResponseFloat(&parser, LW20_ID_LASER_TEMPERATURE, (float*)ResponseData); }
+	else if (ResponseType == LWC_LASER_BACKGROUND_NOISE) { return parseResponseFloat(&parser, LW20_ID_LASER_BACKGROUND_NOISE, (float*)ResponseData); }
+	else if (ResponseType == LWC_LASER_SIGNAL_STRENGTH_FIRST) { return parseResponseInt(&parser, LW20_ID_LASER_SIGNAL_STRENGTH_FIRST, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_SIGNAL_STRENGTH_LAST) { return parseResponseInt(&parser, LW20_ID_LASER_SIGNAL_STRENGTH_LAST, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_OFFSET) { return parseResponseFloat(&parser, LW20_ID_LASER_OFFSET, (float*)ResponseData); }
+	
+	// Coms
+	else if (ResponseType == LWC_COMS_BAUD_RATE) { return parseResponseInt(&parser, LW20_ID_COMS_BAUD_RATE, (int32_t*)ResponseData); }
+
 	else if (ResponseType == LWC_SAVE_ALL)
 	{
 		if (!checkIdentDouble(&parser, "%p")) return false;
@@ -401,158 +561,385 @@ bool parseResponse(lwLW20* Lw20, lwCommand ResponseType, void* ResponseData = 0)
 	return false;
 }
 
-bool readResponse(lwLW20* Lw20, lwCommand ResponseType, void* ResponseData = 0)
+//-------------------------------------------------------------------------
+// Packet Building.
+//-------------------------------------------------------------------------
+void packetWriteChar(lwCmdPacket* Packet, char Char)
 {
-	// TODO: Add ability to repeat cmd if failed.
-	//Serial.println("Waiting for response");
-	
-	unsigned long timeout = millis() + 1000;
-	while (millis() < timeout)
+	Packet->buffer[Packet->length++] = Char;
+}
+
+void packetWriteString(lwCmdPacket* Packet, const char* String)
+{
+	while (*String)
+		Packet->buffer[Packet->length++] = String++[0];
+}
+
+void packetWriteDigits(lwCmdPacket* Packet, int32_t Number)
+{
+	int32_t startIndex = Packet->length;
+
+	while (Number > 0)
 	{
-		if (LW20_SERIAL.available() > 0)
+		Packet->buffer[Packet->length++] = (Number % 10) + '0';
+		Number /= 10; 
+	}
+
+	int32_t length = Packet->length - startIndex;
+	int32_t halfLength = length / 2;
+
+	for (int32_t i = 0; i < halfLength; ++i)
+	{
+		uint8_t temp = Packet->buffer[startIndex + i];
+		Packet->buffer[startIndex + i] = Packet->buffer[startIndex + (length - i)];
+		Packet->buffer[startIndex + (length - i)] = temp;
+	}
+}
+
+// Writes a floating point number with 2 decimal places.
+// We always assume there is enough space in the buffer.
+void packetWriteFloat(lwCmdPacket* Packet, float Number)
+{
+	if (Number < 0)
+		packetWriteChar(Packet, '-');
+
+	int32_t whole = (int32_t)Number;
+	int32_t frac = (int32_t)(Number - (float)whole);
+
+	packetWriteDigits(Packet, whole);
+	packetWriteChar(Packet, '.');
+	packetWriteDigits(Packet, frac);
+}
+
+void packetWriteInt(lwCmdPacket* Packet, int32_t Number)
+{
+	if (Number < 0)
+		packetWriteChar(Packet, '-');
+	
+	packetWriteDigits(Packet, Number * (Number < 0 ? -1 : 1));
+}
+
+void packetSend(lwCmdPacket* Packet)
+{
+	lw20_comsWrite(Packet->buffer, Packet->length);
+}
+
+void packetClear(lwCmdPacket* Packet)
+{
+	Packet->length = 0;
+}
+
+void sendSimpleCmd(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd, void* Result = 0)
+{
+	lwCmdPacket packet = {};
+	packetWriteString(&packet, Cmd);
+	packetSend(&packet);
+	//readResponse(Lw20, ResponseType, Result);
+}
+
+void sendSimpleCmdSetInt(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd, int Value)
+{
+	lwCmdPacket packet = {};
+	packetWriteString(&packet, Cmd);
+	packetWriteInt(&packet, Value);
+	packetWriteString(&packet, LW20_TERMINAL);
+	packetSend(&packet);
+	//readResponse(Lw20, ResponseType);
+}
+
+int32_t sendSimpleCmdInt(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd)
+{
+	int32_t result;
+	sendSimpleCmd(Lw20, ResponseType, Cmd, &result);
+	return result;
+}
+
+float sendSimpleCmdFloat(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd)
+{
+	float result;
+	sendSimpleCmd(Lw20, ResponseType, Cmd, &result);
+	return result;
+}
+
+//-------------------------------------------------------------------------
+// Global.
+//-------------------------------------------------------------------------
+void lw20SaveAll(lwLW20* Lw20)
+{
+	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "%p\r");
+}
+
+//-------------------------------------------------------------------------
+// Product.
+//-------------------------------------------------------------------------
+void lw20Product(lwLW20* Lw20)
+{
+	sendSimpleCmd(Lw20, LWC_PRODUCT, "?\r", Lw20);
+}
+
+//-------------------------------------------------------------------------
+// Laser.
+//-------------------------------------------------------------------------
+int32_t lw20GetLaserMode(lwLW20* Lw20)
+{
+	return sendSimpleCmdInt(Lw20, LWC_LASER_MODE, LW20_CMD_QUERY(LW20_ID_LASER_MODE));
+}
+
+int32_t lw20GetLaserFiring(lwLW20* Lw20)
+{
+	return sendSimpleCmdInt(Lw20, LWC_LASER_FIRING, LW20_CMD_QUERY(LW20_ID_LASER_FIRING));
+}
+
+float lw20GetLaserTemperature(lwLW20* Lw20)
+{
+	return sendSimpleCmdFloat(Lw20, LWC_LASER_TEMPERATURE, LW20_CMD_QUERY(LW20_ID_LASER_TEMPERATURE));
+}
+
+float lw20GetLaserBackgroundNoise(lwLW20* Lw20)
+{
+	return sendSimpleCmdFloat(Lw20, LWC_LASER_BACKGROUND_NOISE, LW20_CMD_QUERY(LW20_ID_LASER_BACKGROUND_NOISE));
+}
+
+float lw20GetDistance(lwLW20* Lw20, lwPulseType PulseType, lwReturnFilter ReturnFilter)
+{
+	lwCmdPacket packet = {};
+
+	if (PulseType == LWPT_FIRST)
+		packetWriteString(&packet, "?ldf,");
+	else if (PulseType == LWPT_LAST)
+		packetWriteString(&packet, "?ldl,");
+
+	packetWriteInt(&packet, (uint32_t)ReturnFilter);
+	packetWriteString(&packet, LW20_TERMINAL);
+	packetSend(&packet);
+
+	float result = 0.0f;
+
+	/*
+	if (PulseType == LWPT_FIRST)
+		readResponse(Lw20, LWC_LASER_DISTANCE_FIRST, &result);
+	else
+		readResponse(Lw20, LWC_LASER_DISTANCE_LAST, &result);
+	*/
+
+	return result;
+}
+
+int32_t lw20GetLaserSignalStrength(lwLW20* Lw20, lwPulseType PulseType)
+{
+	if (PulseType == LWPT_FIRST)
+		return sendSimpleCmdInt(Lw20, LWC_LASER_SIGNAL_STRENGTH_FIRST, LW20_CMD_QUERY(LW20_ID_LASER_SIGNAL_STRENGTH_FIRST));
+	else if (PulseType == LWPT_LAST)
+		return sendSimpleCmdInt(Lw20, LWC_LASER_SIGNAL_STRENGTH_LAST, LW20_CMD_QUERY(LW20_ID_LASER_SIGNAL_STRENGTH_LAST));
+
+	return 0;
+}
+
+//-------------------------------------------------------------------------
+// Servo.
+//-------------------------------------------------------------------------
+
+// These functions are more like helpers that sit on top of the raw protocol?
+void lw20StartScan(lwLW20* Lw20)
+{
+	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "#ss,1\r");
+}
+
+void lw20StopScan(lwLW20* Lw20)
+{
+	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "#ss,1\r");
+}
+
+//-------------------------------------------------------------------------
+// Alarms.
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// Communications.
+//-------------------------------------------------------------------------
+
+lwBaudRate lw20GetComsBaudRate(lwLW20* Lw20)
+{
+	return (lwBaudRate)sendSimpleCmdInt(Lw20, LWC_COMS_BAUD_RATE, LW20_CMD_QUERY(LW20_ID_COMS_BAUD_RATE));
+}
+
+void lw20SetComsBaudRate(lwLW20* Lw20, lwBaudRate BaudRate)
+{
+	sendSimpleCmdSetInt(Lw20, LWC_COMS_BAUD_RATE, LW20_SET LW20_ID_COMS_BAUD_RATE ",", BaudRate);
+}
+
+//-------------------------------------------------------------------------
+// Energy.
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// Main public facing functions.
+//-------------------------------------------------------------------------
+void flushDeviceSerial()
+{
+	uint8_t c;
+	while (lw20_comsRead(&c, 1) != 0);
+}
+
+int32_t lw20BaudRateToInt(lwBaudRate BaudRate)
+{
+	int32_t baudTable[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
+	return baudTable[BaudRate];
+}
+
+bool lw20CheckError(lwLW20* Lw20)
+{
+	return false;
+}
+
+bool lw20ClearError(lwLW20* Lw20)
+{
+	return false;
+}
+
+lwLW20 lw20CreateLW20()
+{
+	lwLW20 lw20 = {};
+
+	lw20.active = false;
+	lw20.initState = LWIS_SET_MMI;
+	lw20.model[0] = 0;
+	lw20.firmwareVersion = 0.0f;
+	lw20.softwareVersion = 0.0f;
+	lw20.error = LWE_NONE;
+	lw20.packetLen = 0;
+
+	return lw20;
+}
+
+struct lwPumpPacketResult
+{
+	bool gotPacket;
+	int32_t bytesRead;
+};
+
+lwPumpPacketResult pumpRecvPacket(lwLW20* Lw20, uint8_t* Buffer, int32_t BufferSize)
+{
+	// TODO: Report streaming packets too?
+	lwPumpPacketResult result = {};
+
+	printf("Parse\n");
+	
+	for (int i = 0; i < BufferSize; ++i)
+	{
+		result.bytesRead++;
+
+		uint8_t c = Buffer[i];
+		if (c == '\n')
 		{
-			int c = LW20_SERIAL.read();
-			
-			if (c == '\n')
+			Lw20->packetLen = 0;
+		}
+		else if (c == '\r')
+		{
+			if (Lw20->packetLen > 0)
 			{
-				Lw20->packetLen = 0;
+				// Got packet.
+				//bool result = parseResponse(Lw20, ResponseType, ResponseData);
+				printf("Got Packet %d\n", Lw20->packetLen);
+				// TODO: Set number of bytes read from buffer so client can advance buffer ptr.				
+				result.gotPacket = true;
+				return result;
 			}
-			else if (c == '\r')
+		}
+		else
+		{
+			if (Lw20->packetLen >= 32)
 			{
-				if (Lw20->packetLen > 0)
-				{          
-					bool result = parseResponse(Lw20, ResponseType, ResponseData);
-
-					if (!result)
-					{
-						// TODO: Parse failed.
-					}
-
-					Lw20->packetLen = 0;
-					return true;
-				}
+				printf("Packet overflow\n");
+				Lw20->packetLen = 0;
 			}
 			else
 			{
-				if (Lw20->packetLen == 32)
-				{
-					Serial.println("Packet overflow");
-					Lw20->packetLen = 0;
-				}
-				else
-					Lw20->packetBuf[Lw20->packetLen++] = c;
+				Lw20->packetBuf[Lw20->packetLen++] = c;
 			}
 		}
 	}
 
-	Serial.println("Request timeout");
-	return false;
+	return result;
 }
 
-void flushDeviceSerial()
+lwEventLoopResult lw20PumpEventLoop(lwEventLoopUpdate* Update)
 {
-	while (LW20_SERIAL.available())
-		LW20_SERIAL.read();
-}
+	lwLW20* lw20 = Update->lw20;
+	lwCmdPacket* packet = &Update->packet;
+	Update->bytesRead = 0;
 
-bool lw20Init(lwLW20* Lw20)
-{
-	Lw20->active = false;
+	if (lw20->initState == LWIS_INITED)
+	{
+		
+	}
+	else
+	{
+		if (lw20->initState == LWIS_SET_MMI)
+		{
+			lw20->initState = LWIS_WAIT_MMI;
+			packetWriteChar(packet, LW20_FORCE_MMI_MODE_CHAR);
+			return LWELR_SEND;
+		}
+		else if (lw20->initState == LWIS_WAIT_MMI)
+		{
+			lw20->initState = LWIS_STOP_STREAMING;
+			Update->timeMS = 100;
+			return LWELR_SLEEP;
+		}
+		else if (lw20->initState == LWIS_STOP_STREAMING)
+		{
+			lw20->initState = LWIS_WAIT_STOP_STREAMING;
+			packetWriteString(packet, "$\r");
+			return LWELR_SEND;
+		}
+		else if (lw20->initState == LWIS_WAIT_STOP_STREAMING)
+		{
+			lw20->initState = LWIS_STOP_SCANNING;
+			Update->timeMS = 100;
+			return LWELR_SLEEP;
+		}
+		else if (lw20->initState == LWIS_STOP_SCANNING)
+		{
+			lw20->initState = LWIS_WAIT_STOP_SCANNING;
+			packetWriteString(packet, "#SS,0\r");
+			return LWELR_SEND;
+		}
+		else if (lw20->initState == LWIS_WAIT_STOP_SCANNING)
+		{
+			// if the timeout was hit, we are done here.
+			//lw20->initState = LWIS_FLUSH_BUFFER;
+			//Update->timeMS = 100; // Set timeout time.
 
-	// Set initial state.
-	// Send MMI char
-	LW20_SERIAL.write(LW20_FORCE_MMI_MODE_CHAR);
-	delay(32);
-	
-	// Stop all streaming
-	LW20_SERIAL.write("$\r");
-	delay(32);
-	
-	// Stop scanning should be part of req/resp
-	LW20_SERIAL.write("#SS,0\r");
-	delay(32);
-	
-	// Prepare for clean req/resp.
-	flushDeviceSerial();
+			lw20->initState = LWIS_GET_PRODUCT;
+			return LWELR_AGAIN;
+		}
+		else if (lw20->initState == LWIS_GET_PRODUCT)
+		{
+			lw20->initState = LWIS_WAIT_GET_PRODUCT;
+			packetWriteString(packet, "?\r");
+			// Expecting return packet			
 
-	Serial.println("Get product info");
+			return LWELR_SEND;
+		}
+		else if (lw20->initState == LWIS_WAIT_GET_PRODUCT)
+		{
+			// Read all the IO until we have a packet going.
+			printf("Read %d\n", Update->inputBufferSize);
+			lwPumpPacketResult recvResult = pumpRecvPacket(lw20, Update->inputBuffer, Update->inputBufferSize);
+			if (recvResult.gotPacket)
+			{
+				// We can return a packet type here.
+				if (parseResponse(lw20, LWC_PRODUCT, lw20))
+					return LWELR_INITED;
+			}
 
-	LW20_SERIAL.write(LW20_CMD_QUERY());
-	readResponse(Lw20, LWC_PRODUCT, Lw20);
+			Update->bytesRead = recvResult.bytesRead;
+			return LWELR_IO_WAIT;
+		}
+	}	
 
-	Lw20->active = true;
-	return true;
-}
-
-bool lw20Ping(lwLW20* Lw20)
-{
-	LW20_SERIAL.write(LW20_CMD_QUERY());
-	readResponse(Lw20, LWC_PRODUCT);
-
-	return true;
-}
-
-bool lw20GetComsBaudRate(lwLW20* Lw20, int32_t* BaudRate)
-{
-	int32_t baudRate = 0;
-
-	LW20_SERIAL.write(LW20_CMD_QUERY(LW20_ID_COMS_BAUD_RATE));
-	readResponse(Lw20, LWC_COMS_BAUD_RATE, &baudRate);
-
-	if (baudRate == 0) *BaudRate = 9600;
-	else if (baudRate == 1) *BaudRate = 19200;
-	else if (baudRate == 2) *BaudRate = 38400;
-	else if (baudRate == 3) *BaudRate = 57600;
-	else if (baudRate == 4) *BaudRate = 115200;
-	else if (baudRate == 5) *BaudRate = 230400;
-	else if (baudRate == 6) *BaudRate = 460800;
-	else if (baudRate == 7) *BaudRate = 921600;
-
-	return true;
-}
-
-bool lw20SetComsBaudRate(lwLW20* Lw20, lwBaudRate BaudRate)
-{
-	LW20_SERIAL.write(LW20_SET LW20_ID_COMS_BAUD_RATE ",");
-	LW20_SERIAL.print(BaudRate);
-	LW20_SERIAL.write(LW20_TERMINAL);
-	readResponse(Lw20, LWC_COMS_BAUD_RATE);
-
-	return true;
-}
-
-bool lw20GetDistance(lwLW20* Lw20, lwPulseType PulseType, lwReturnFilter ReturnFilter, float* Distance)
-{
-	if (PulseType == LWPT_FIRST)
-		LW20_SERIAL.write("?ldf,");
-	else if (PulseType == LWPT_LAST)
-		LW20_SERIAL.write("?ldl,");
-
-	LW20_SERIAL.print(ReturnFilter);
-	LW20_SERIAL.print("\r");
-
-	if (PulseType == LWPT_FIRST)
-	readResponse(Lw20, LWC_LASER_DISTANCE_FIRST, Distance);
-  else
-	readResponse(Lw20, LWC_LASER_DISTANCE_LAST, Distance);
-
-  return true;
-}
-
-bool lw20StartScan(lwLW20* Lw20)
-{
-	LW20_SERIAL.write(LW20_CMD_SET("ss,1"));
-	readResponse(Lw20, LWC_COMS_BAUD_RATE);
-
-	return true;
-}
-
-bool lw20SaveAll(lwLW20* Lw20)
-{
-	LW20_SERIAL.write("%P\r");
-	readResponse(Lw20, LWC_SAVE_ALL);
-	
-	return true;
+	return LWELR_AGAIN;
 }
 
 #endif
