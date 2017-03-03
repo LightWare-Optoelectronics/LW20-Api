@@ -16,10 +16,21 @@
 #include <linux/input.h>
 #include <stdint.h>
 
+#define LW20_API_IMPLEMENTATION
+#include "lw20api.h"
+
 struct lwSerialPort
 {
 	int fd;
 	bool connected;
+};
+
+struct lwSensorContext
+{
+	lwLW20			lw20;
+	lwSerialPort 	serial;
+	uint8_t			inputBuffer[128];
+	int32_t			inputBufferSize;
 };
 
 //-------------------------------------------------------------------------
@@ -31,6 +42,11 @@ inline int64_t PlatformGetMicrosecond()
 	clock_gettime(CLOCK_REALTIME, &time);
 
 	return time.tv_sec * 1000000 + time.tv_nsec / 1000;
+}
+
+inline int32_t PlatformGetMS()
+{
+	return (PlatformGetMicrosecond() / 1000);
 }
 
 timespec timeDiff(timespec &Start, timespec &End)
@@ -50,42 +66,6 @@ timespec timeDiff(timespec &Start, timespec &End)
 
 	return temp;
 }
-
-//-------------------------------------------------------------------------
-// API Coms Implementation.
-//-------------------------------------------------------------------------
-
-lwSerialPort _globalSerialPort;
-
-void serialWrite(lwSerialPort* ComPort, char *Buffer, int32_t BufferSize);
-int32_t serialReadNoError(lwSerialPort* ComPort, char *Buffer, int32_t BufferSize);
-
-int32_t lw20_comsWrite(uint8_t* Buffer, int32_t Size)
-{
-	serialWrite(&_globalSerialPort, (char*)Buffer, Size);
-	return 0;
-}
-
-int32_t lw20_comsRead(uint8_t* Buffer, int32_t Size)
-{
-	// TODO: Handle read error.
-	int32_t result = serialReadNoError(&_globalSerialPort, (char*)Buffer, Size);
-	return result;
-}
-
-int32_t lw20_getMillis()
-{
-	return (PlatformGetMicrosecond() / 1000);
-}
-
-void lw20_sleep(int32_t Milliseconds)
-{
-	usleep(Milliseconds * 1000);
-}
-
-#define LW20_API_IMPLEMENTATION
-#define DEBUG_PRINT(A) printf(A)
-#include "lw20api.h"
 
 //-------------------------------------------------------------------------
 // Serial Communication.
@@ -441,7 +421,164 @@ endCommandBuffer();
 
 */
 
-// TODO: How do timeouts work with delays to pumping?
+// TODO: Pass in timeout.
+bool getPacket(lwSensorContext* Context, lwResponsePacket* Packet)
+{
+	uint8_t* Buffer = Context->inputBuffer;
+	int32_t* BufferSize = &Context->inputBufferSize;
+	
+	// TODO: Reset response packet function.
+	Packet->data.length = 0;
+	Packet->type = LWC_NONE;
+
+	while (true)
+	{
+		if (*BufferSize == 0)
+		{
+			int32_t timeout = PlatformGetMS() + 2000;
+			bool timedOut = false;
+			while (!(timedOut = !(PlatformGetMS() < timeout)))
+			{	
+				*BufferSize = serialReadNoError(&Context->serial, (char*)Buffer, 128);
+				if (*BufferSize == -1)
+				{
+					printf("LWELR_GET_PACKET: Read error: %d\n", *BufferSize);
+					return false;
+				}
+				else if (*BufferSize != 0)
+				{
+					printf("(%d) [\n", *BufferSize);
+					for (int i = 0; i < *BufferSize; ++i)							
+						if (Buffer[i] != '\n' && Buffer[i] != '\r')
+							printf("%c", Buffer[i]);
+					printf("]\n");
+
+					break;
+				}
+				else
+				{
+					printf("(0)\n");
+				}
+			}
+
+			if (timedOut)
+			{
+				printf("LWELR_GET_PACKET: Timeout\n");
+				return false;
+			}
+		}
+		
+		lwResolvePacketResult packetResolve = lw20ResolvePacket(Packet, Buffer, *BufferSize);
+
+		// If we read bytes, shift the input buffer
+		if (packetResolve.bytesRead > 0)
+		{
+			int32_t remaining = *BufferSize - packetResolve.bytesRead;
+			for (int i = 0; i < remaining; ++i)
+				Buffer[i] = Buffer[packetResolve.bytesRead + i];
+			
+			*BufferSize = remaining;
+		}
+
+		if (packetResolve.status == LWRPS_COMPLETE)
+		{
+			printf("LWELR_GET_PACKET: resolved: %d\n", Packet->type);
+			// Can intercept and handle streaming data directly here.
+			// But make sure you eventually give the pump a packet, or exceed timeout.
+			// Could handle streaming data directly here
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool sendPacket(lwSensorContext* Context, lwCmdPacket* Packet)
+{
+	printf("LWELR_SEND: (%d) [", Packet->length);
+	for (int i = 0; i < Packet->length; ++i)
+	{
+		if (Packet->buffer[i] != '\n' && Packet->buffer[i] != '\r')
+			printf("%c", Packet->buffer[i]);
+	}
+	printf("]\n");
+	serialWrite(&Context->serial, (char*)Packet->buffer, Packet->length);
+
+	return true;
+}
+
+// callbacks for feedback, IO, etc. Run to completion.
+void runEventLoop(lwSensorContext* Context)
+{
+	lwResponsePacket packet = {};
+
+	// TODO: Maybe convert to simple params passed into event loop?
+	lwEventLoopUpdate update = {};
+	update.lw20 = &Context->lw20;
+	update.responsePacket = &packet;
+
+	bool running = true;
+	while (running)
+	{
+		lwEventLoopResult result = lw20PumpEventLoop(&update);
+		
+		switch (result)
+		{
+			case LWELR_SEND:
+			{
+				if (!sendPacket(Context, &update.sendPacket))
+				{
+					printf("LWELR_SEND: Error\n");
+					running = false;
+				}
+			} break;
+
+			case LWELR_SLEEP:
+			{
+				printf("LWELR_SLEEP: %dms\n", update.timeMS);
+				usleep(update.timeMS * 1000);
+			} break;
+
+			case LWELR_GET_PACKET:
+			{
+				printf("LWELR_GET_PACKET\n");
+				if (!getPacket(Context, &packet))
+				{
+					printf("LWELR_GET_PACKET: Error\n");
+					running = false;
+				}
+			} break;
+
+			case LWELR_INITED:
+			{
+				printf("LWELR_INITED\n");
+			} break;
+
+			case LWELR_AGAIN:
+			{
+			} break;
+
+			case LWELR_ERROR:
+			case LWELR_TIMEOUT:
+			{
+				running = false;
+				printf("LWELR_TIMEOUT/ERROR\n");
+			} break;
+
+			case LWELR_FEEDBACK:
+			{
+				running = false;
+				printf("LWELR_FEEDBACK\n");
+			} break;
+
+			case LWELR_COMPLETED:
+			{
+				running = false;
+				printf("LWELR_COMPLETED\n");
+			} break;
+		};
+	}
+}
 
 //-------------------------------------------------------------------------
 // Application Entry.
@@ -453,131 +590,17 @@ int main(int args, char **argv)
 	timespec timeLastFrame;
 	clock_gettime(CLOCK_REALTIME, &timeLastFrame);
 
-	serialOpen(&_globalSerialPort);
+	lwSensorContext context = {};
+	context.lw20 = lw20CreateLW20();
+	serialOpen(&context.serial);
 
-	lwLW20 lw20 = lw20CreateLW20();
-	uint8_t inputBuffer[128];
-	int32_t inputBufferSize = 0;
-
-	//-------------------------------------------------------------------------
-	// Pump until inited.
-	//-------------------------------------------------------------------------
-	bool initing = true;
-	while (initing)
-	{
-		// TODO: Reset update function.
-		// lw20ResetUpdate()
-		lwEventLoopUpdate update;
-		update.lw20 = &lw20;
-		update.inputBuffer = inputBuffer;
-		update.inputBufferSize = inputBufferSize;
-		update.packet.length = 0;
-
-		lwEventLoopResult result = lw20PumpEventLoop(&update);
-
-		// If we read bytes, shift the input buffer
-		if (update.bytesRead > 0)
-		{
-			printf("Bytes Read: %d\n", update.bytesRead);
-			int32_t remaining = inputBufferSize - update.bytesRead;
-			for (int i = 0; i < remaining; ++i)
-			{
-				inputBuffer[i] = inputBuffer[update.bytesRead + i];
-			}
-
-			inputBufferSize = remaining;
-		}
-		
-		switch (result)
-		{
-			case LWELR_SEND:
-			{
-				printf("Send packet: (%d) [", update.packet.length);
-				for (int i = 0; i < update.packet.length; ++i)
-				{
-					if (update.packet.buffer[i] != '\n' && update.packet.buffer[i] != '\r')
-						printf("%c", update.packet.buffer[i]);
-				}
-				printf("]\n");
-				serialWrite(&_globalSerialPort, (char*)update.packet.buffer, update.packet.length);
-			} break;
-
-			case LWELR_SLEEP:
-			{
-				printf("Sleep for %dms\n", update.timeMS);
-				usleep(update.timeMS * 1000);
-			} break;
-
-			case LWELR_IO_WAIT:
-			{
-				// TODO: We are actually expecting a packet in all cases, so it seems like we could
-				// just have a simple packet getter API, then feed the packet data into the pump.
-				// An entire packet struct with data could processed here. ie, the pump doesn't parse at all.
-				printf("IO Wait\n");
-
-				// Constantly feed remaining data until we have a packet.
-				if (inputBufferSize > 0)
-				{
-					printf("Had remaining\n");
-					break;
-				}
-
-				// TODO: Timeout specified by pump?
-				int32_t timeout = lw20_getMillis() + 1000;
-				bool timedOut = false;
-				while (!(timedOut = !(lw20_getMillis() < timeout)))
-				{	
-					inputBufferSize = serialReadNoError(&_globalSerialPort, (char*)inputBuffer, sizeof(inputBuffer));
-					printf("(%d) [\n", inputBufferSize);
-					if (inputBufferSize == -1)
-					{
-						printf("IO_WAIT Read error: %d\n", inputBufferSize);						
-						initing = false;
-						break;
-					}
-					else if (inputBufferSize != 0)
-					{
-						for (int i = 0; i < inputBufferSize; ++i)							
-							if (inputBuffer[i] != '\n' && inputBuffer[i] != '\r')
-								printf("%c", inputBuffer[i]);
-						printf("]\n");
-						break;
-					}
-				}
-
-				if (timedOut)
-				{
-					initing = false;
-					printf("Recv Timeout\n");
-				}
-			} break;
-
-			case LWELR_INITED:
-			{
-				initing = false;
-				printf("Inited\n");
-			} break;
-
-			case LWELR_AGAIN:
-			{
-			} break;
-
-			case LWELR_FEEDBACK:			
-			case LWELR_ERROR:
-			case LWELR_TIMEOUT:
-			case LWELR_COMPLETED:
-			default:
-			{
-				initing = false;
-				printf("Unknown event pump response\n");
-			} break;
-		};
-	}
-	//-------------------------------------------------------------------------
-
+	// Run the event loop to completion to init the unit.
+	runEventLoop(&context);
+	
 	printf("Done event pump\n");
 
-	printf("Product: %s, %f, %f\n", lw20.model, lw20.firmwareVersion, lw20.softwareVersion);
+	lwLW20* lw20 = &context.lw20;
+	printf("Product: %s, %f, %f\n", lw20->product.model, lw20->product.firmwareVersion, lw20->product.softwareVersion);
 	//int32_t baudRate = lw20BaudRateToInt(lw20GetComsBaudRate(&lw20));
 	//printf("Baud Rate:%d\n", baudRate);
 	//lw20SetComsBaudRate(&lw20, LWBR_921600);
@@ -614,7 +637,7 @@ int main(int args, char **argv)
 	*/
 
 	printf("Program End\n");
-	serialClose(&_globalSerialPort);
+	serialClose(&context.serial);
 
 	return 0;
 }

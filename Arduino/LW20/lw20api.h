@@ -231,9 +231,10 @@ enum lwResolvePacketStatus
 
 struct lwProductInfo
 {
-	char	model[8];
-	float	firmwareVersion;
-	float 	softwareVersion;
+	char 		model[8];
+	float 		firmwareVersion;
+	float 		softwareVersion;
+
 };
 
 struct lwLW20
@@ -507,8 +508,6 @@ bool parseResponseFloat(lwParser* Parser, const char* ResponseString, float* Res
 
 bool parseResponse(lwResponsePacket* Packet)
 {
-	// TODO: Simpler packet parsing for simliar responses.
-
 	lwParser parser = {};
 	parser.packetBuf = Packet->data.buffer;
 	parser.packetLen = Packet->data.length;
@@ -523,6 +522,17 @@ bool parseResponse(lwResponsePacket* Packet)
 
 	if (identSize == 0)
 		return false;
+
+	/*
+	printf("Got packet ident: (%d) [", identSize);
+
+	for (int i = 0; i < identSize; ++i)
+	{
+		printf("%c", identBuf[i]);
+	}	
+
+	printf("]\n");
+	*/
 
 	if (identSize == 1)
 	{
@@ -686,6 +696,72 @@ bool parseResponse(lwResponsePacket* Packet)
 			}
 		}
 	}
+
+	// Check which packet we are trying to parse.
+	
+	/*
+	if (ResponseType == LWC_PRODUCT)
+	{
+		char model[8];
+		float softwareVersion = 0.0f;
+		float firmwareVersion = 0.0f;
+
+		if (!checkIdentSingle(&parser, LW20_ID_PRODUCT)) return false;
+		if (!expectPacketDelimeter(&parser)) return false;
+		if (!expectIdentifier(&parser, model, sizeof(model))) return false;
+		if (!expectParamDelimeter(&parser)) return false;
+		if (!expectNumber(&parser, &softwareVersion)) return false;
+		if (!expectParamDelimeter(&parser)) return false;
+		if (!expectNumber(&parser, &firmwareVersion)) return false;
+
+		if (ResponseData)
+		{
+			lwLW20* lw20 = (lwLW20*)ResponseData;
+			memcpy(lw20->model, model, 8);
+			lw20->firmwareVersion = firmwareVersion;
+			lw20->softwareVersion = softwareVersion;
+		}
+		
+		return true;
+	}
+	else if (ResponseType == LWC_LASER_DISTANCE_FIRST || ResponseType == LWC_LASER_DISTANCE_LAST)
+	{
+		float distance = 0;
+		float filterType = 0;
+		
+		if (ResponseType == LWC_LASER_DISTANCE_FIRST && !checkIdentSingle(&parser, LW20_ID_LASER_DISTANCE_FIRST)) return false;
+		if (ResponseType == LWC_LASER_DISTANCE_LAST && !checkIdentSingle(&parser, LW20_ID_LASER_DISTANCE_LAST)) return false;
+			
+		if (!expectParamDelimeter(&parser)) return false;
+		if (!expectNumber(&parser, &filterType)) return false;
+		if (!expectPacketDelimeter(&parser)) return false;
+		if (!expectNumber(&parser, &distance)) return false;
+
+		if (ResponseData != 0)
+			*(float*)ResponseData = distance;
+		
+		return true;
+	}
+	
+	// Laser
+	else if (ResponseType == LWC_LASER_MODE) { return parseResponseInt(&parser, LW20_ID_LASER_MODE, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_FIRING) { return parseResponseInt(&parser, LW20_ID_LASER_FIRING, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_TEMPERATURE) { return parseResponseFloat(&parser, LW20_ID_LASER_TEMPERATURE, (float*)ResponseData); }
+	else if (ResponseType == LWC_LASER_BACKGROUND_NOISE) { return parseResponseFloat(&parser, LW20_ID_LASER_BACKGROUND_NOISE, (float*)ResponseData); }
+	else if (ResponseType == LWC_LASER_SIGNAL_STRENGTH_FIRST) { return parseResponseInt(&parser, LW20_ID_LASER_SIGNAL_STRENGTH_FIRST, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_SIGNAL_STRENGTH_LAST) { return parseResponseInt(&parser, LW20_ID_LASER_SIGNAL_STRENGTH_LAST, (int32_t*)ResponseData); }
+	else if (ResponseType == LWC_LASER_OFFSET) { return parseResponseFloat(&parser, LW20_ID_LASER_OFFSET, (float*)ResponseData); }
+	
+	// Coms
+	else if (ResponseType == LWC_COMS_BAUD_RATE) { return parseResponseInt(&parser, LW20_ID_COMS_BAUD_RATE, (int32_t*)ResponseData); }
+
+	else if (ResponseType == LWC_SAVE_ALL)
+	{
+		if (!checkIdentDouble(&parser, "%p")) return false;
+
+		return true;
+	}
+	*/
 
 	return false;
 }
