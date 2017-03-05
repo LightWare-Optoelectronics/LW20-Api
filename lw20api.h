@@ -24,6 +24,8 @@
 // macros to help quell the madness.
 //
 // TOOD: Append lw20 to all functions for "namespacing"?
+//
+// TODO: Verify packet size when streaming multiple channels
 //-------------------------------------------------------------------------
 
 #ifndef LIGHTWARE_INCLUDE_LW20API_H
@@ -290,9 +292,24 @@ struct lwEventLoopUpdate
 	int32_t				timeMS;
 };
 
+struct lwResolvePacketResult
+{
+	lwResolvePacketStatus status;
+	int32_t bytesRead;
+};
+
 #endif
 
 #ifdef LW20_API_IMPLEMENTATION
+
+//-------------------------------------------------------------------------
+// Helper function
+//-------------------------------------------------------------------------
+int32_t lw20BaudRateToInt(lwBaudRate BaudRate)
+{
+	int32_t baudTable[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
+	return baudTable[BaudRate];
+}
 
 //-------------------------------------------------------------------------
 // Parsing.
@@ -398,7 +415,7 @@ int32_t expectIdentifier(lwParser* Parser, char* Buffer, int32_t BufferSize)
 		Parser->lexemeStart = Parser->packetIdx - 1;
 		Parser->lexemeLength = 1;
 		getNextChar(Parser);
-		while ((identSize < BufferSize) > 0 && (isCharIdentifier(Parser->nextChar) || isCharNumber(Parser->nextChar)))
+		while ((identSize < BufferSize) && (isCharIdentifier(Parser->nextChar) || isCharNumber(Parser->nextChar)))
 		{
 			++identSize;
 			(Buffer++)[0] = Parser->nextChar;
@@ -486,7 +503,7 @@ bool parseResponseInt(lwParser* Parser, const char* ResponseString, int32_t* Res
 	if (!expectNumber(Parser, &value)) return false;
 
 	if (ResponseData)
-		*ResponseData = value;
+		*ResponseData = (int32_t)value;
 
 	return true;
 }
@@ -906,21 +923,6 @@ void lw20SetComsBaudRate(lwLW20* Lw20, lwBaudRate BaudRate)
 //-------------------------------------------------------------------------
 // Main public facing functions.
 //-------------------------------------------------------------------------
-int32_t lw20BaudRateToInt(lwBaudRate BaudRate)
-{
-	int32_t baudTable[] = { 9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600 };
-	return baudTable[BaudRate];
-}
-
-bool lw20CheckError(lwLW20* Lw20)
-{
-	return false;
-}
-
-bool lw20ClearError(lwLW20* Lw20)
-{
-	return false;
-}
 
 lwLW20 lw20CreateLW20()
 {
@@ -928,19 +930,10 @@ lwLW20 lw20CreateLW20()
 	return lw20;
 }
 
-struct lwPumpPacketResult
+lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffer, int32_t BufferSize)
 {
-	bool gotPacket;
-	int32_t bytesRead;
-};
+	lwResolvePacketResult result = {};
 
-lwPumpPacketResult pumpRecvPacket(lwLW20* Lw20, uint8_t* Buffer, int32_t BufferSize)
-{
-	// TODO: Report streaming packets too?
-	lwPumpPacketResult result = {};
-
-	//printf("Parse\n");
-	
 	for (int i = 0; i < BufferSize; ++i)
 	{
 		result.bytesRead++;
@@ -948,30 +941,38 @@ lwPumpPacketResult pumpRecvPacket(lwLW20* Lw20, uint8_t* Buffer, int32_t BufferS
 		uint8_t c = Buffer[i];
 		if (c == '\n')
 		{
-			Lw20->packetLen = 0;
+			Packet->data.length = 0;
 		}
 		else if (c == '\r')
 		{
-			if (Lw20->packetLen > 0)
+			if (Packet->data.length > 0)
 			{
-				// Got packet.
-				//bool result = parseResponse(Lw20, ResponseType, ResponseData);
-				//printf("Got Packet %d\n", Lw20->packetLen);
-				// TODO: Set number of bytes read from buffer so client can advance buffer ptr.				
-				result.gotPacket = true;
-				return result;
+				if (parseResponse(Packet))
+				{
+					result.status = LWRPS_COMPLETE;
+				}
+				else
+				{
+					//printf("Packet Resolve: Bad packet parse\n");
+					Packet->data.length = 0;
+					result.status = LWRPS_AGAIN;
+				}
+
+				break;
 			}
 		}
 		else
 		{
-			if (Lw20->packetLen >= 32)
+			if (Packet->data.length >= 32)
 			{
-				//printf("Packet overflow\n");
-				Lw20->packetLen = 0;
+				//printf("Packet Resolve: Overflow\n");
+				Packet->data.length = 0;
+				result.status = LWRPS_AGAIN;
+				break;
 			}
 			else
 			{
-				Lw20->packetBuf[Lw20->packetLen++] = c;
+				Packet->data.buffer[Packet->data.length++] = c;
 			}
 		}
 	}
@@ -1097,62 +1098,6 @@ lwEventLoopResult lw20PumpEventLoop(lwEventLoopUpdate* Update)
 	}	
 
 	return LWELR_AGAIN;
-}
-
-struct lwResolvePacketResult
-{
-	lwResolvePacketStatus status;
-	int32_t bytesRead;
-};
-
-lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffer, int32_t BufferSize)
-{
-	lwResolvePacketResult result = {};
-
-	for (int i = 0; i < BufferSize; ++i)
-	{
-		result.bytesRead++;
-
-		uint8_t c = Buffer[i];
-		if (c == '\n')
-		{
-			Packet->data.length = 0;
-		}
-		else if (c == '\r')
-		{
-			if (Packet->data.length > 0)
-			{
-				if (parseResponse(Packet))
-				{
-					result.status = LWRPS_COMPLETE;
-				}
-				else
-				{
-					//printf("Packet Resolve: Bad packet parse\n");
-					Packet->data.length = 0;
-					result.status = LWRPS_AGAIN;
-				}
-
-				break;
-			}
-		}
-		else
-		{
-			if (Packet->data.length >= 32)
-			{
-				//printf("Packet Resolve: Overflow\n");
-				Packet->data.length = 0;
-				result.status = LWRPS_AGAIN;
-				break;
-			}
-			else
-			{
-				Packet->data.buffer[Packet->data.length++] = c;
-			}
-		}
-	}
-
-	return result;
 }
 
 #endif

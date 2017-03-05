@@ -1,6 +1,8 @@
-# LW20/SF20 API
+# LW20/SF20 API Arduino
 
 ## About
+
+Platform dependant code for the Arduino. Copy of main lw20api files.
 
 Visit http://www.lightware.co.za for more information about the products we provide.
 
@@ -13,8 +15,6 @@ LW20/SF20
 * Software: 1.0
 
 ## Supported Platforms
-
-Platform usage code implements communication layer, usses callback methods.
 
 * Linux (32bit & 64bit), including Raspberry Pi.
 * Windows (32bit & 64bit)
@@ -35,20 +35,7 @@ layers
 * simple layer with callbacks
 * transport layer
 
-The event system requires continuous pumping and integrates into various architectural situations.
-// Every command requires an event pump cycle to be managed to completion.
-// If you have streaming commands, they can also be sent through. Otherwise they are ignored.
-// You should hit the pump until you get COMPLETED.
-
-By passing callbacks to your IO functions this layer will automatically manage the event loops.
-
-This layer will handle all aspects of communication over various protocols & interfaces.
-Usually for rapid prototyping. Most applications already have some internal communication structure in
-place that they wish to use. Threading to allow for stream data capturing?
-
-// If you don't have the memory to store a command buffer there is no harm in executing commands individually.
-// Command buffers purely act as a convenience to manage a single pump cycle for sending multiple commands. 
-// This is exactly what the config blocks use internally.
+The event system requires continuous pumping that can fit within various overall architectural situations.
 
 Sample Code
 ```c++
