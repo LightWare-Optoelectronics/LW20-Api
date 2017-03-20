@@ -82,15 +82,10 @@ bool LW20::_getPacket(lwResponsePacket* Packet)
 bool LW20::runEventLoop(lwResponsePacket* Response)
 {
 	lwResponsePacket packet = {};
-	packet.type = LWC_NONE;
-	packet.data.length = 0;
-
-	// TODO: Maybe convert to simple params passed into event loop?
 	lwEventLoopUpdate update = {};
 	update.lw20 = &_lw20;
 	update.responsePacket = &packet;
-	update.sendPacket.length = 0;
-
+	
 	bool completed = false;
 	bool running = true;
 
@@ -100,29 +95,21 @@ bool LW20::runEventLoop(lwResponsePacket* Response)
 	
 		switch (result)
 		{
-			case LWELR_INITED:
-			{
-			} break;
-
-			case LWELR_SEND:
-			{
-				if (!_sendPacket(&update.sendPacket))
-					running = false;
-			} break;
-
 			case LWELR_SLEEP:
 			{
 				delay(update.timeMS);
+			} break;
+
+			case LWELR_SEND_PACKET:
+			{
+				if (!_sendPacket(&update.sendPacket))
+					running = false;
 			} break;
 
 			case LWELR_GET_PACKET:
 			{
 				if (!_getPacket(&packet))
 					running = false;
-			} break;
-
-			case LWELR_AGAIN:
-			{
 			} break;
 
 			case LWELR_ERROR:

@@ -1,35 +1,24 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 API V0.1.0
+// LightWare LW20 API V0.2.0
 //
-// First Pass.
 // Support for Arduino, PI, Windows, Linux (8bit, 32bit, 64bit).
 // Using minimal C++.
-// Single header, no dependencies beyond c lib. Only memset?
+// Single header, no external dependencies.
 // No dynamic memory allocations.
 //
 // Supported LightWare Products:
-// Model: LW20 - FW: 1.0 - SW: 1.0
+// Model: LW20 - FW: 1.0 - SW: 1.0 // TODO: Give warning about deprecated support.
+// Model: LW20 - FW: 2.0 - SW: 2.0 // Added stream character for streams
 //-------------------------------------------------------------------------
-//
-// Communication must be decoupled.
-// We want to support any byte based communication: (TCP, UDP, Serial, I2c, etc...)
-// Callback functions for reading and writing. (At the moment just extrnally declared c functions.)
-// Allow C++ object method based callbacks?
-// Maybe virtual class that has functions for read write
 //
 // Event based. Layered usage approach.
 //
-// TODO: Need to fix the horrible way to declare and deal with new commands.
-// Don't want to waste mem/perf for tables, so probably just codespace with
-// macros to help quell the madness.
-//
-// TOOD: Append lw20 to all functions for "namespacing"?
-//
-// TODO: Verify packet size when streaming multiple channels
 //-------------------------------------------------------------------------
 
 #ifndef LIGHTWARE_INCLUDE_LW20API_H
 #define LIGHTWARE_INCLUDE_LW20API_H
+
+#define LW20_STREAM_CHANNEL_COUNT	5
 
 #define LW20_FORCE_MMI_MODE_CHAR	'`'
 #define LW20_FORCE_HMI_MODE_CHAR	'\0x1B'
@@ -97,6 +86,11 @@ enum lwCommand
 	LWC_NO_RESPONSE,
 
 	LWC_STREAM_CLEAR,
+	LWC_STREAM_1,
+	LWC_STREAM_2,
+	LWC_STREAM_3,
+	LWC_STREAM_4,
+	LWC_STREAM_5,
 
 	LWC_SAVE_ALL,
 
@@ -174,40 +168,28 @@ enum lwBaudRate
 
 enum lwModeSpeed
 {
-	LWMS_388	= 1,
-	LWMS_194	= 2,
-	LWMS_129	= 3,
-	LWMS_97		= 4,
-	LWMS_77		= 5,
-	LWMS_64		= 6,
-	LWMS_55		= 7,
-	LWMS_48		= 8,
+	LWMS_388		= 1,
+	LWMS_194		= 2,
+	LWMS_129		= 3,
+	LWMS_97			= 4,
+	LWMS_77			= 5,
+	LWMS_64			= 6,
+	LWMS_55			= 7,
+	LWMS_48			= 8,
 };
 
-enum lwError
+enum lwEventLoopStatus
 {
-	LWE_NONE,
-	LWE_NOT_CONNECTED,
-	LWE_TIMEOUT,
-	LWE_NO_RESPONSE,
-	LWE_INVALID_VALUE,
-	LWE_OUTPUT_BUFFER_TOO_SMALL,
-};
-
-enum lwEventLoopResult
-{
-	LWELR_GET_PACKET,
 	LWELR_SLEEP,
+	LWELR_SEND_PACKET,
+	LWELR_GET_PACKET,
 	LWELR_FEEDBACK,
-	LWELR_SEND,
-	LWELR_AGAIN,
+	LWELR_COMPLETED,
 	LWELR_ERROR,
 	LWELR_TIMEOUT,
-	LWELR_COMPLETED,
-	LWELR_INITED,
 };
 
-enum lwInitState
+enum lwSensorState
 {
 	LWIS_SET_MMI,
 	LWIS_WAIT_MMI,
@@ -224,6 +206,12 @@ enum lwInitState
 	LWIS_WAITING_FOR_RESPONSE,
 };
 
+struct lwEventLoopResult
+{
+	lwEventLoopStatus	status;
+	int32_t				timeMS;
+};
+
 enum lwResolvePacketStatus
 {
 	LWRPS_AGAIN,
@@ -233,57 +221,61 @@ enum lwResolvePacketStatus
 
 struct lwProductInfo
 {
-	char	model[8];
-	float	firmwareVersion;
-	float 	softwareVersion;
+	char				model[8];
+	float				firmwareVersion;
+	float 				softwareVersion;
 };
 
-struct lwLW20
+struct lwScanSample
 {
-	bool		active;
-	lwInitState	initState;
-
-	lwProductInfo product;
-
-	uint8_t		packetBuf[32];
-	int 		packetLen;
-
-	// TODO: Need this?
-	lwError		error;
-	void*		userData;
-
-	lwCommand	sendCommand;
-};
-
-struct lwParser
-{
-	uint8_t*	packetBuf;
-	int 		packetLen;
-	int 		packetIdx;
-	int 		nextChar;
-	int 		lexemeStart;
-	int 		lexemeLength;
+	float				angle;
+	float				firstPulse;
+	float				lastPulse;
 };
 
 struct lwCmdPacket
 {
-	uint8_t	buffer[32];
-	int32_t	length;
+	lwCommand			type;
+	uint8_t				buffer[32];
+	int32_t				length;
 };
 
 struct lwResponsePacket
 {
-	lwCmdPacket		data;
-	lwCommand 		type;
+	lwCmdPacket			data;
+	lwCommand 			type;
+	bool				streaming;
 	
 	union 
 	{
 		int32_t			intValue;
 		float			floatValue;
 		lwProductInfo 	product;
+		lwScanSample	scanSample;
 	};
 };
 
+struct lwLW20
+{
+	lwSensorState		state;
+	lwProductInfo 		product;
+	lwCmdPacket 		command;
+	lwResponsePacket 	response;
+	lwCommand			streamCommands[LW20_STREAM_CHANNEL_COUNT];
+	void*				userData;
+};
+
+struct lwParser
+{
+	uint8_t*			packetBuf;
+	int 				packetLen;
+	int 				packetIdx;
+	int 				nextChar;
+	int 				lexemeStart;
+	int 				lexemeLength;
+};
+
+/*
 struct lwEventLoopUpdate
 {
 	lwLW20*				lw20;
@@ -291,6 +283,7 @@ struct lwEventLoopUpdate
 	lwResponsePacket*	responsePacket;
 	int32_t				timeMS;
 };
+*/
 
 struct lwResolvePacketResult
 {
@@ -303,7 +296,7 @@ struct lwResolvePacketResult
 #ifdef LW20_API_IMPLEMENTATION
 
 //-------------------------------------------------------------------------
-// Helper function
+// Helper functions.
 //-------------------------------------------------------------------------
 int32_t lw20BaudRateToInt(lwBaudRate BaudRate)
 {
@@ -404,7 +397,6 @@ bool expectIdentifier(lwParser* Parser)
 	return false;
 }
 
-// NOTE: Max includes null term.
 int32_t expectIdentifier(lwParser* Parser, char* Buffer, int32_t BufferSize)
 {
 	int32_t identSize = 0;	
@@ -524,7 +516,8 @@ bool parseResponseFloat(lwParser* Parser, const char* ResponseString, float* Res
 
 bool parseResponse(lwResponsePacket* Packet)
 {
-	// TODO: Simpler packet parsing for simliar responses.
+	// NOTE: Parsing is a finite automata using direct evalutation of the incoming data.
+	// This is useful for performance constrained platforms when parsing large loads of data.
 
 	lwParser parser = {};
 	parser.packetBuf = Packet->data.buffer;
@@ -533,18 +526,30 @@ bool parseResponse(lwResponsePacket* Packet)
 
 	getNextChar(&parser);	
 
-	char identBuf[8];
+	char identifierBuffer[8];
+	char* identBuf = identifierBuffer;
 
-	// NOTE: We include numbers in the identifier.
-	int32_t identSize = expectIdentifier(&parser, identBuf, sizeof(identBuf));
+	int32_t identSize = expectIdentifier(&parser, identifierBuffer, sizeof(identifierBuffer));
 
 	if (identSize == 0)
 		return false;
 
+	// Identify streaming packets vs stream channel responses.
+	if (identBuf[0] == '$' && !(identBuf[1] >= '0' && identBuf[1] <= '9'))
+	{
+		--identSize;
+		identBuf = identifierBuffer + 1;
+		Packet->streaming = true;
+	}
+	else
+	{
+		Packet->streaming = false;
+	}
+
 	if (identSize == 1)
 	{
 		if (identBuf[0] == '$')
-		{
+		{	
 			Packet->type = LWC_STREAM_CLEAR;
 			return true;
 		}
@@ -580,7 +585,18 @@ bool parseResponse(lwResponsePacket* Packet)
 	}
 	else if (identSize == 2)
 	{
-		if (identBuf[0] == 'l')
+		if (identBuf[0] == '$')
+		{
+			if (identBuf[1] == '1') Packet->type = LWC_STREAM_1;
+			else if (identBuf[1] == '2') Packet->type = LWC_STREAM_2;
+			else if (identBuf[1] == '3') Packet->type = LWC_STREAM_3;
+			else if (identBuf[1] == '4') Packet->type = LWC_STREAM_4;
+			else if (identBuf[1] == '5') Packet->type = LWC_STREAM_5;
+			else return false;
+			
+			return true;
+		}
+		else if (identBuf[0] == 'l')
 		{
 			if (identBuf[1] == 'm')
 			{
@@ -591,13 +607,38 @@ bool parseResponse(lwResponsePacket* Packet)
 
 				return true;	
 			}
+			if (identBuf[1] == 't')
+			{
+				Packet->type = LWC_LASER_TEMPERATURE;
+
+				if (!expectPacketDelimeter(&parser)) return false;
+				if (!expectNumber(&parser, &Packet->floatValue)) return false;
+
+				return true;
+			}
 		}
 		else if (identBuf[0] == 's')
 		{
 			if (identBuf[1] == 's')
 			{
-				Packet->type = LWC_SERVO_SCANNING;
-				return true;
+				if (Packet->streaming)
+				{
+					Packet->type = LWC_SERVO_SCAN;
+
+					if (!expectPacketDelimeter(&parser)) return false;
+					if (!expectNumber(&parser, &Packet->scanSample.angle)) return false;
+					if (!expectParamDelimeter(&parser)) return false;
+					if (!expectNumber(&parser, &Packet->scanSample.firstPulse)) return false;
+					if (!expectParamDelimeter(&parser)) return false;
+					if (!expectNumber(&parser, &Packet->scanSample.lastPulse)) return false;
+
+					return true;
+				}
+				else
+				{
+					Packet->type = LWC_SERVO_SCANNING;
+					return true;
+				}
 			}
 			else if (identBuf[1] == 'c')
 			{
@@ -626,6 +667,15 @@ bool parseResponse(lwResponsePacket* Packet)
 
 				return true;
 			}
+			else if (identBuf[1] == 'p')
+			{
+				Packet->type = LWC_SERVO_POSITION;
+
+				if (!expectPacketDelimeter(&parser)) return false;
+				if (!expectNumber(&parser, &Packet->floatValue)) return false;
+
+				return true;
+			}
 		}
 	}
 	else if (identSize == 3)
@@ -639,6 +689,23 @@ bool parseResponse(lwResponsePacket* Packet)
 					if (identBuf[2] == 'a') Packet->type = LWC_LASER_ALARM_A_DISTANCE;
 					else if (identBuf[2] == 'b') Packet->type = LWC_LASER_ALARM_B_DISTANCE;
 					
+					if (!expectPacketDelimeter(&parser)) return false;
+					if (!expectNumber(&parser, &Packet->floatValue)) return false;
+
+					return true;
+				}
+			}
+			else if (identBuf[1] == 'd')
+			{
+				if (identBuf[2] == 'f' || identBuf[2] == 'l')
+				{
+					if (identBuf[2] == 'f') Packet->type = LWC_LASER_DISTANCE_FIRST;
+					else if (identBuf[2] == 'l') Packet->type = LWC_LASER_DISTANCE_LAST;
+
+					int filterType = 0;
+
+					if (!expectParamDelimeter(&parser)) return false;
+					if (!expectNumber(&parser, &filterType)) return false;
 					if (!expectPacketDelimeter(&parser)) return false;
 					if (!expectNumber(&parser, &Packet->floatValue)) return false;
 
@@ -710,6 +777,8 @@ bool parseResponse(lwResponsePacket* Packet)
 //-------------------------------------------------------------------------
 // Packet Building.
 //-------------------------------------------------------------------------
+// NOTE: We always assume there is enough space in the buffer to write.
+
 void packetWriteChar(lwCmdPacket* Packet, char Char)
 {
 	Packet->buffer[Packet->length++] = Char;
@@ -749,8 +818,6 @@ void packetWriteDigits(lwCmdPacket* Packet, int32_t Number)
 	}
 }
 
-// Writes a floating point number with 2 decimal places.
-// We always assume there is enough space in the buffer.
 void packetWriteFloat(lwCmdPacket* Packet, float Number)
 {
 	if (Number < 0)
@@ -775,153 +842,41 @@ void packetWriteInt(lwCmdPacket* Packet, int32_t Number)
 void packetClear(lwCmdPacket* Packet)
 {
 	Packet->length = 0;
+	Packet->type = LWC_NONE;
 }
 
-void sendSimpleCmd(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd, void* Result = 0)
+void packetWriteProduct(lwCmdPacket* Packet)
 {
-	lwCmdPacket packet = {};
-	packetWriteString(&packet, Cmd);
-	//packetSend(&packet);
-	//readResponse(Lw20, ResponseType, Result);
+	packetClear(Packet);
+	packetWriteString(Packet, "?\r");
+	Packet->type = LWC_PRODUCT;
 }
 
-void sendSimpleCmdSetInt(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd, int Value)
+void packetWriteLaserMode(lwCmdPacket* Packet, int ModeSpeed)
 {
-	lwCmdPacket packet = {};
-	packetWriteString(&packet, Cmd);
-	packetWriteInt(&packet, Value);
-	packetWriteString(&packet, LW20_TERMINAL);
-	//packetSend(&packet);
-	//readResponse(Lw20, ResponseType);
+	packetClear(Packet);
+	packetWriteString(Packet, "#lm,");
+	packetWriteInt(Packet, ModeSpeed);
+	packetWriteString(Packet, LW20_TERMINAL);
+	Packet->type = LWC_LASER_MODE;
 }
 
-int32_t sendSimpleCmdInt(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd)
+void packetWriteDistanceFirst(lwCmdPacket* Packet)
 {
-	int32_t result = 0;
-	sendSimpleCmd(Lw20, ResponseType, Cmd, &result);
-	return result;
+	packetClear(Packet);
+	packetWriteString(Packet, "#ldf\r");
+	Packet->type = LWC_LASER_DISTANCE_FIRST;
 }
 
-float sendSimpleCmdFloat(lwLW20* Lw20, lwCommand ResponseType, const char* Cmd)
+void packetWriteDistanceLast(lwCmdPacket* Packet)
 {
-	float result = 0;
-	sendSimpleCmd(Lw20, ResponseType, Cmd, &result);
-	return result;
+	packetClear(Packet);
+	packetWriteString(Packet, "#ldl\r");
+	Packet->type = LWC_LASER_DISTANCE_LAST;
 }
 
 //-------------------------------------------------------------------------
-// Global.
-//-------------------------------------------------------------------------
-void lw20SaveAll(lwLW20* Lw20)
-{
-	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "%p\r");
-}
-
-//-------------------------------------------------------------------------
-// Product.
-//-------------------------------------------------------------------------
-void lw20Product(lwLW20* Lw20)
-{
-	sendSimpleCmd(Lw20, LWC_PRODUCT, "?\r", Lw20);
-}
-
-//-------------------------------------------------------------------------
-// Laser.
-//-------------------------------------------------------------------------
-int32_t lw20GetLaserMode(lwLW20* Lw20)
-{
-	return sendSimpleCmdInt(Lw20, LWC_LASER_MODE, LW20_CMD_QUERY(LW20_ID_LASER_MODE));
-}
-
-int32_t lw20GetLaserFiring(lwLW20* Lw20)
-{
-	return sendSimpleCmdInt(Lw20, LWC_LASER_FIRING, LW20_CMD_QUERY(LW20_ID_LASER_FIRING));
-}
-
-float lw20GetLaserTemperature(lwLW20* Lw20)
-{
-	return sendSimpleCmdFloat(Lw20, LWC_LASER_TEMPERATURE, LW20_CMD_QUERY(LW20_ID_LASER_TEMPERATURE));
-}
-
-float lw20GetLaserBackgroundNoise(lwLW20* Lw20)
-{
-	return sendSimpleCmdFloat(Lw20, LWC_LASER_BACKGROUND_NOISE, LW20_CMD_QUERY(LW20_ID_LASER_BACKGROUND_NOISE));
-}
-
-float lw20GetDistance(lwLW20* Lw20, lwPulseType PulseType, lwReturnFilter ReturnFilter)
-{
-	lwCmdPacket packet = {};
-
-	if (PulseType == LWPT_FIRST)
-		packetWriteString(&packet, "?ldf,");
-	else if (PulseType == LWPT_LAST)
-		packetWriteString(&packet, "?ldl,");
-
-	packetWriteInt(&packet, (uint32_t)ReturnFilter);
-	packetWriteString(&packet, LW20_TERMINAL);
-	//packetSend(&packet);
-
-	float result = 0.0f;
-
-	/*
-	if (PulseType == LWPT_FIRST)
-		readResponse(Lw20, LWC_LASER_DISTANCE_FIRST, &result);
-	else
-		readResponse(Lw20, LWC_LASER_DISTANCE_LAST, &result);
-	*/
-
-	return result;
-}
-
-int32_t lw20GetLaserSignalStrength(lwLW20* Lw20, lwPulseType PulseType)
-{
-	if (PulseType == LWPT_FIRST)
-		return sendSimpleCmdInt(Lw20, LWC_LASER_SIGNAL_STRENGTH_FIRST, LW20_CMD_QUERY(LW20_ID_LASER_SIGNAL_STRENGTH_FIRST));
-	else if (PulseType == LWPT_LAST)
-		return sendSimpleCmdInt(Lw20, LWC_LASER_SIGNAL_STRENGTH_LAST, LW20_CMD_QUERY(LW20_ID_LASER_SIGNAL_STRENGTH_LAST));
-
-	return 0;
-}
-
-//-------------------------------------------------------------------------
-// Servo.
-//-------------------------------------------------------------------------
-
-// These functions are more like helpers that sit on top of the raw protocol?
-void lw20StartScan(lwLW20* Lw20)
-{
-	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "#ss,1\r");
-}
-
-void lw20StopScan(lwLW20* Lw20)
-{
-	sendSimpleCmd(Lw20, LWC_SAVE_ALL, "#ss,1\r");
-}
-
-//-------------------------------------------------------------------------
-// Alarms.
-//-------------------------------------------------------------------------
-
-//-------------------------------------------------------------------------
-// Communications.
-//-------------------------------------------------------------------------
-
-lwBaudRate lw20GetComsBaudRate(lwLW20* Lw20)
-{
-	return (lwBaudRate)sendSimpleCmdInt(Lw20, LWC_COMS_BAUD_RATE, LW20_CMD_QUERY(LW20_ID_COMS_BAUD_RATE));
-}
-
-void lw20SetComsBaudRate(lwLW20* Lw20, lwBaudRate BaudRate)
-{
-	sendSimpleCmdSetInt(Lw20, LWC_COMS_BAUD_RATE, LW20_SET LW20_ID_COMS_BAUD_RATE ",", BaudRate);
-}
-
-//-------------------------------------------------------------------------
-// Energy.
-//-------------------------------------------------------------------------
-
-//-------------------------------------------------------------------------
-// Main public facing functions.
+// Layer 1.
 //-------------------------------------------------------------------------
 
 lwLW20 lw20CreateLW20()
@@ -932,6 +887,7 @@ lwLW20 lw20CreateLW20()
 
 lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffer, int32_t BufferSize)
 {
+	// TODO: We don't report errors here yet.
 	lwResolvePacketResult result = {};
 
 	for (int i = 0; i < BufferSize; ++i)
@@ -953,7 +909,6 @@ lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffe
 				}
 				else
 				{
-					//printf("Packet Resolve: Bad packet parse\n");
 					Packet->data.length = 0;
 					result.status = LWRPS_AGAIN;
 				}
@@ -965,7 +920,6 @@ lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffe
 		{
 			if (Packet->data.length >= 32)
 			{
-				//printf("Packet Resolve: Overflow\n");
 				Packet->data.length = 0;
 				result.status = LWRPS_AGAIN;
 				break;
@@ -980,124 +934,221 @@ lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffe
 	return result;
 }
 
-lwEventLoopResult lw20PumpEventLoop(lwEventLoopUpdate* Update)
+lwEventLoopResult lw20PumpEventLoop(lwLW20* Lw20)
 {
-	lwLW20* lw20 = Update->lw20;
-	lwCmdPacket* packet = &Update->sendPacket;
+	lwEventLoopResult result = {};
+	result.status = LWELR_COMPLETED;
+	lwCmdPacket* packet = &Lw20->command;
 	
-	if (lw20->initState >= LWIS_INITED)
+	if (Lw20->state >= LWIS_INITED)
 	{
-		if (lw20->initState == LWIS_INITED)
+		if (Lw20->state == LWIS_INITED)
 		{
-			if (lw20->sendCommand == LWC_NONE)
+			if (Lw20->command.type != LWC_NONE)
 			{
-				return LWELR_COMPLETED;
+				Lw20->state = LWIS_SENDING_COMMAND;
+				result.status = LWELR_SEND_PACKET;
 			}
 			else
 			{
-				lw20->initState = LWIS_SENDING_COMMAND;
-				//packetClear(packet);
-				//packetWriteString(packet, (const char*)lw20->packetBuf);
-				memcpy(packet, (lwCmdPacket*)&lw20->packetBuf, sizeof(lwCmdPacket));
-				return LWELR_SEND;
-			}
-		}
-		else if (lw20->initState == LWIS_SENDING_COMMAND)
-		{
-			lw20->initState = LWIS_WAITING_FOR_RESPONSE;
-			return LWELR_GET_PACKET;
-		}
-		else if (lw20->initState == LWIS_WAITING_FOR_RESPONSE)
-		{
-			if (Update->responsePacket->type == lw20->sendCommand)
-			{
-				lw20->initState = LWIS_INITED;
-				
-				if (lw20->sendCommand != LWC_NO_RESPONSE)
+				if (Lw20->response.streaming)
 				{
-					lw20->sendCommand = LWC_NONE;
-					return LWELR_FEEDBACK;
+					Lw20->response.streaming = false;
+					result.status = LWELR_FEEDBACK;
 				}
-				
-				lw20->sendCommand = LWC_NONE;
-				return LWELR_COMPLETED;
+				else
+				{
+					result.status = LWELR_COMPLETED;
+				}
 			}
-
-			return LWELR_GET_PACKET;
 		}
-
-		return LWELR_COMPLETED;
+		else if (Lw20->state == LWIS_SENDING_COMMAND)
+		{
+			Lw20->state = LWIS_WAITING_FOR_RESPONSE;
+			result.status = LWELR_GET_PACKET;
+		}
+		else if (Lw20->state == LWIS_WAITING_FOR_RESPONSE)
+		{
+			if (Lw20->response.type == Lw20->command.type)
+			{
+				Lw20->state = LWIS_INITED;
+				Lw20->command.type = LWC_NONE;
+				result.status = LWELR_COMPLETED;
+			}
+			else
+			{
+				result.status = LWELR_GET_PACKET;
+			}
+		}
 	}
 	else
 	{
-		if (lw20->initState == LWIS_SET_MMI)
+		if (Lw20->state == LWIS_SET_MMI)
 		{
-			lw20->initState = LWIS_WAIT_MMI;
+			Lw20->state = LWIS_WAIT_MMI;
 			packetClear(packet);
 			packetWriteChar(packet, LW20_FORCE_MMI_MODE_CHAR);
-			return LWELR_SEND;
+			result.status = LWELR_SEND_PACKET;
 		}
-		else if (lw20->initState == LWIS_WAIT_MMI)
+		else if (Lw20->state == LWIS_WAIT_MMI)
 		{
-			lw20->initState = LWIS_STOP_STREAMING;
-			Update->timeMS = 100;
-			return LWELR_SLEEP;
+			Lw20->state = LWIS_STOP_STREAMING;
+			result.timeMS = 100;
+			result.status = LWELR_SLEEP;
 		}
-		else if (lw20->initState == LWIS_STOP_STREAMING)
+		else if (Lw20->state == LWIS_STOP_STREAMING)
 		{
-			lw20->initState = LWIS_WAIT_STOP_STREAMING;
+			Lw20->state = LWIS_WAIT_STOP_STREAMING;
 			packetClear(packet);
 			packetWriteString(packet, "$\r");
-			return LWELR_SEND;
+			result.status = LWELR_SEND_PACKET;
 		}
-		else if (lw20->initState == LWIS_WAIT_STOP_STREAMING)
+		else if (Lw20->state == LWIS_WAIT_STOP_STREAMING)
 		{
-			lw20->initState = LWIS_STOP_SCANNING;
-			Update->timeMS = 100;
-			return LWELR_SLEEP;
+			Lw20->state = LWIS_STOP_SCANNING;
+			result.timeMS = 100;
+			result.status = LWELR_SLEEP;
 		}
-		else if (lw20->initState == LWIS_STOP_SCANNING)
+		else if (Lw20->state == LWIS_STOP_SCANNING)
 		{
-			lw20->initState = LWIS_WAIT_STOP_SCANNING;
+			Lw20->state = LWIS_WAIT_STOP_SCANNING;
 			packetClear(packet);
 			packetWriteString(packet, "#SS,0\r");
-			return LWELR_SEND;
+			result.status = LWELR_SEND_PACKET;
 		}
-		else if (lw20->initState == LWIS_WAIT_STOP_SCANNING)
+		else if (Lw20->state == LWIS_WAIT_STOP_SCANNING)
 		{
-			lw20->initState = LWIS_GET_PRODUCT;
-			return LWELR_AGAIN;
+			Lw20->state = LWIS_GET_PRODUCT;
+			result.timeMS = 100;
+			result.status = LWELR_SLEEP;
 		}
-		else if (lw20->initState == LWIS_GET_PRODUCT)
+		else if (Lw20->state == LWIS_GET_PRODUCT)
 		{
-			lw20->initState = LWIS_SENT_GET_PRODUCT;
+			Lw20->state = LWIS_SENT_GET_PRODUCT;
 			packetClear(packet);
 			packetWriteString(packet, "?\r");
-			return LWELR_SEND;
+			result.status = LWELR_SEND_PACKET;
 		}
-		else if (lw20->initState == LWIS_SENT_GET_PRODUCT)		
+		else if (Lw20->state == LWIS_SENT_GET_PRODUCT)		
 		{
-			lw20->initState = LWIS_WAIT_GET_PRODUCT;
-			return LWELR_GET_PACKET;
+			Lw20->state = LWIS_WAIT_GET_PRODUCT;
+			result.status = LWELR_GET_PACKET;
 		}
-		else if (lw20->initState == LWIS_WAIT_GET_PRODUCT)
+		else if (Lw20->state == LWIS_WAIT_GET_PRODUCT)
 		{
-			if (Update->responsePacket->type == LWC_PRODUCT)
+			if (Lw20->response.type == LWC_PRODUCT)
 			{
-				// TODO: Add back in.
-				//memcpy(&lw20->product, &Update->responsePacket->product, sizeof(lwProductInfo));
-				lw20->initState = LWIS_INITED;
-				lw20->sendCommand = LWC_NONE;
-				return LWELR_INITED;
+				Lw20->product = Lw20->response.product;
+				Lw20->state = LWIS_INITED;
+				Lw20->command.type = LWC_NONE;
+				Lw20->response.type = LWC_NONE;
+				result.status = LWELR_COMPLETED;
 			}
-
-			// TODO: Keep asking for a packet until timeout expires, then retry for X times, then error out.
-			
-			return LWELR_GET_PACKET;
+			else
+			{
+				result.status = LWELR_GET_PACKET;
+			}
 		}
 	}	
 
-	return LWELR_AGAIN;
+	return result;
+}
+
+//-------------------------------------------------------------------------
+// Layer 2 Blocking.
+//-------------------------------------------------------------------------
+
+// Sensor Context for data stores and communication callbacks.
+// Communication context? Data is input buffer, callbacks for read/write.
+
+typedef bool(*lw20SendPacketCallback)(lwLW20* Lw20, lwCmdPacket* Packet);
+typedef bool(*lw20GetPacketCallback)(lwLW20* Lw20, lwResponsePacket* Packet);
+typedef bool(*lw20SleepCallback)(lwLW20* Lw20, int32_t TimeMS);
+typedef bool(*lw20StreamCallback)(lwLW20* Lw20, lwResponsePacket* Packet);
+
+struct lwServiceContext
+{
+	lw20SendPacketCallback	sendPacketCallback;
+	lw20GetPacketCallback	getPacketCallback;
+	lw20SleepCallback		sleepCallback;
+	lw20StreamCallback		streamCallback;
+};
+
+// Event Loop Execution
+bool runEventLoop(lwLW20* Lw20, lwServiceContext* Service, bool Streaming = false)
+{
+	while (true)
+	{
+		lwEventLoopResult result = lw20PumpEventLoop(Lw20);
+		
+		switch (result.status)
+		{
+			case LWELR_SLEEP:
+			{
+				Service->sleepCallback(Lw20, result.timeMS);
+			} break;
+
+			case LWELR_SEND_PACKET:
+			{
+				if (!Service->sendPacketCallback(Lw20, &Lw20->command))
+					return false;
+			} break;
+
+			case LWELR_GET_PACKET:
+			{
+				if (!Service->getPacketCallback(Lw20, &Lw20->response))
+					return false;
+			} break;
+
+			case LWELR_ERROR:
+			case LWELR_TIMEOUT:
+			{
+				return false;
+			} break;
+
+			case LWELR_FEEDBACK:
+			{
+				if (Streaming)
+				{
+					Service->streamCallback(Lw20, &Lw20->response);
+					Service->getPacketCallback(Lw20, &Lw20->response);
+				}
+				else
+				{
+					//std::cout << "Completed Event Loop with Feedback\n";
+					return true;
+				}
+
+			} break;
+
+			case LWELR_COMPLETED:
+			{	
+				if (Streaming)
+				{
+					Service->getPacketCallback(Lw20, &Lw20->response);
+				}
+				else
+				{
+					//std::cout << "Completed Event Loop\n";
+					return true;
+				}
+
+			} break;
+		};
+	}
+}
+
+void executeCommand(lwLW20* Lw20, lwServiceContext* Service, const char* Command, lwCommand ResponseType)
+{
+	packetClear(&Lw20->command);
+	packetWriteString(&Lw20->command, Command);
+	Lw20->command.type = ResponseType;
+	runEventLoop(Lw20, Service);
+}
+
+void executeCommand(lwLW20* Lw20, lwServiceContext* Service, lwResponsePacket* Response)
+{
+
 }
 
 #endif

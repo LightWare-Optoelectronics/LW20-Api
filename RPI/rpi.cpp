@@ -399,8 +399,6 @@ bool sendPacket(lwSensorContext* Context, lwCmdPacket* Packet)
 void runEventLoop(lwSensorContext* Context)
 {
 	lwResponsePacket packet = {};
-
-	// TODO: Maybe convert to simple params passed into event loop?
 	lwEventLoopUpdate update = {};
 	update.lw20 = &Context->lw20;
 	update.responsePacket = &packet;
@@ -412,19 +410,19 @@ void runEventLoop(lwSensorContext* Context)
 		
 		switch (result)
 		{
-			case LWELR_SEND:
-			{
-				if (!sendPacket(Context, &update.sendPacket))
-				{
-					printf("LWELR_SEND: Error\n");
-					running = false;
-				}
-			} break;
-
 			case LWELR_SLEEP:
 			{
 				printf("LWELR_SLEEP: %dms\n", update.timeMS);
 				usleep(update.timeMS * 1000);
+			} break;
+
+			case LWELR_SEND_PACKET:
+			{
+				if (!sendPacket(Context, &update.sendPacket))
+				{
+					printf("LWELR_SEND_PACKET: Error\n");
+					running = false;
+				}
 			} break;
 
 			case LWELR_GET_PACKET:
@@ -435,15 +433,6 @@ void runEventLoop(lwSensorContext* Context)
 					printf("LWELR_GET_PACKET: Error\n");
 					running = false;
 				}
-			} break;
-
-			case LWELR_INITED:
-			{
-				printf("LWELR_INITED\n");
-			} break;
-
-			case LWELR_AGAIN:
-			{
 			} break;
 
 			case LWELR_ERROR:
