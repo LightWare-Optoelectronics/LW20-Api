@@ -1,3 +1,7 @@
+//-------------------------------------------------------------------------
+// LightWare LW20 Windows Example
+//-------------------------------------------------------------------------
+
 #include <iostream>
 
 #define LW20_API_IMPLEMENTATION
@@ -6,13 +10,17 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
-// TODO: Linux & Windows usage code is very similar, only coms, time, differences
+struct lwSensorContext
+{
+	lwLW20		lw20;
+	HANDLE		serialPort;
+	uint8_t		inputBuffer[128];
+	int32_t		inputBufferSize;
+};
 
 //-------------------------------------------------------------------------
 // Com Port Implementation.
 //-------------------------------------------------------------------------
-HANDLE comHandle;
-
 void serialDisconnect(HANDLE* Handle)
 {
 	if (*Handle != INVALID_HANDLE_VALUE)
@@ -159,14 +167,6 @@ int serialRead(HANDLE* Handle, uint8_t* Buffer, int32_t BufferSize)
 
 //-------------------------------------------------------------------------
 
-struct lwSensorContext
-{
-	lwLW20		lw20;
-	HANDLE		serialPort;
-	uint8_t		inputBuffer[128];
-	int32_t		inputBufferSize;
-};
-
 bool sendPacket(lwLW20* Lw20, lwCmdPacket* Packet)
 {
 	//std::cout << "Send Packet " << Packet->length << "\n";
@@ -218,7 +218,6 @@ bool getPacket(lwLW20* Lw20, lwResponsePacket* Packet)
 
 bool sleep(lwLW20* Lw20, int32_t TimeMS)
 {
-	//std::cout << "Sleep " << TimeMS << "\n";
 	Sleep(TimeMS);
 	return true;
 };
@@ -241,6 +240,9 @@ bool streamResponse(lwLW20* Lw20, lwResponsePacket* Packet)
 	return true;
 };
 
+//-------------------------------------------------------------------------
+// Application Entry.
+//-------------------------------------------------------------------------
 int main()
 {
 	std::cout << "LW20 Api\n";
@@ -272,6 +274,8 @@ int main()
 
 	// NOTE: Stuck here infinitely.
 	runEventLoop(&context.lw20, &serviceContext, true);
+
+	serialDisconnect(&context.serialPort);
 	
 	std::cout << "Press Enter to Exit...\n";
 	std::cin.ignore();
