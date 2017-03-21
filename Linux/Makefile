@@ -1,8 +1,10 @@
-output: main.o
-	g++ main.o -o lw20api_example -lrt
+build_folder := $(shell mkdir -p bin)
 
-main.o: main.cpp ../lw20api.h
-	g++ -O3 -c main.cpp
+output: ./bin/main.o
+	g++ ./bin/main.o -o ./bin/lw20api_example -lrt
 
-clean: rm*.o
+./bin/main.o: main.cpp ../lw20api.h
+	g++ -O3 -c main.cpp -o ./bin/main.o
+
+clean: rm ./bin/*.o
 

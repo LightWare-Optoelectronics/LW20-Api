@@ -65,7 +65,7 @@ bool serialDisconnect(lwSerialPort* ComPort)
 
 bool serialConnect(lwSerialPort* ComPort, const char* Name, int BitRate)
 {
-	serialClose(ComPort);
+	serialDisconnect(ComPort);
 
 	int fd = -1;
 	printf("Attempt com connection: %s\n", Name);
@@ -184,8 +184,7 @@ bool getPacket(lwLW20* Lw20, lwResponsePacket* Packet)
 	{
 		if (context->inputBufferSize == 0)
 		{
-			int bytesRead = 0
-			
+			int bytesRead = 0;
 			if ((bytesRead = serialRead(&context->serialPort, (char*)context->inputBuffer, sizeof(context->inputBuffer))) != -1)
 				context->inputBufferSize = bytesRead;
 			else
@@ -247,7 +246,7 @@ int main(int args, char **argv)
 	lwSensorContext context = {};
 	context.lw20 = lw20CreateLW20();
 	context.lw20.userData = &context;
-	serialOpen(&context.serialPort, "/dev/ttyUSB0", B115200);
+	serialConnect(&context.serialPort, "/dev/ttyUSB0", B115200);
 
 	lwServiceContext serviceContext = {};
 	serviceContext.sendPacketCallback = sendPacket;
@@ -258,7 +257,21 @@ int main(int args, char **argv)
 	// NOTE: Run event loop for first time init.
 	runEventLoop(&context.lw20, &serviceContext);
 
-	serialClose(&context.serialPort);
+	executeCommand(&context.lw20, &serviceContext, "?\r", LWC_PRODUCT);
+
+	if (context.lw20.response.type == LWC_PRODUCT)
+		std::cout << "Product: " << context.lw20.response.product.model << "\n";
+
+	packetWriteLaserMode(&context.lw20.command, LWMS_48);
+	runEventLoop(&context.lw20, &serviceContext);
+
+	executeCommand(&context.lw20, &serviceContext, "$1lt\r", LWC_STREAM_1);
+	executeCommand(&context.lw20, &serviceContext, "$2ss\r", LWC_STREAM_2);
+
+	// NOTE: Stuck here indefinitely.
+	runEventLoop(&context.lw20, &serviceContext, true);
+
+	serialDisconnect(&context.serialPort);
 
 	std::cout << "Press Enter to Exit...\n";
 	std::cin.ignore();
