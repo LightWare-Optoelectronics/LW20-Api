@@ -1,9 +1,10 @@
-# LW20/SF20 API Linux
+# LW20/SF20 Linux Example
 ## Overview
 
 This example shows how to use the LW20 API on Linux based platforms.
 
-Please read the top level readme for more information about the LW20 API.
+Please read the top level README for more information about the LW20 API.
+
 Visit http://www.lightware.co.za for more information about the products we provide.
 
 ## Building

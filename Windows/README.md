@@ -1,9 +1,7 @@
-# LW20/SF20 Arduino API
+# LW20/SF20 Windows Example
 ## Overview
 
-Platform dependant code for the Arduino.
-
-The Arduino version of the API is a simple wrapper of the lw20api.h file that all other versions of the API use.
+This example shows how to use the LW20 API on Windows based platforms.
 
 Please read the top level README for more information about the LW20 API.
 
@@ -11,7 +9,7 @@ Visit http://www.lightware.co.za for more information about the products we prov
 
 ## Building
 
-The build process here simply aggregates files from the repository into an Arduino library package. You can run the build_release_package.bat file to create a release directory with an LW20 library that is directly loadable by the Arduino IDE.
+Use make to create the executable application.
 
 ## License
 **Unlicense (http://unlicense.org) **
