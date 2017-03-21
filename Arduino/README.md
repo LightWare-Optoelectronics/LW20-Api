@@ -2,53 +2,19 @@
 
 ## About
 
-Platform dependant code for the Arduino. Copy of main lw20api files.
+Platform dependant code for the Arduino.
 
 Visit http://www.lightware.co.za for more information about the products we provide.
 
-## Supported Products
-
-LW20/SF20
-
-* Model: LW20
-* Firmware: 1.0
-* Software: 1.0
-
-## Supported Platforms
-
-* Linux (32bit & 64bit), including Raspberry Pi.
-* Windows (32bit & 64bit)
-* Arduino
-* ROS
-
 ## Overview
 
-The layered structure of the API opens a variety of options for integration within your own application framework.
-You can select a single layer to work with, or use components from each that accomplish your goals. Note: Not all
-components can be mixed.
+The Arduino version of the API is a simple wrapper of the lw20api.h file that all other versions of the API use.
 
-layers
+Please read the top level readme for more information about the LW20 API.
 
-* packet resolver
-* packet builder
-* event pump
-* simple layer with callbacks
-* transport layer
+## Building
 
-The event system requires continuous pumping that can fit within various overall architectural situations.
-
-Sample Code
-```c++
-int main() {
-}
-```
-
-This is a [Link](https://github.com) thing.
-
-## Protocol
-
-After issuing a request you must wait for a response before issuing the next request.
-
+The build process here simply aggregates files from the repository into an Arduino library package. You can run the build_release_package.bat file to create a release directory with an LW20 library that is directly loadable by the Arduino IDE.
 
 ## License
 **Unlicense (http://unlicense.org) **
