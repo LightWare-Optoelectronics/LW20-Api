@@ -1,27 +1,34 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 API V0.2.0
-//
-// Support for Arduino, PI, Windows, Linux (8bit, 32bit, 64bit).
-// Using minimal C++.
-// Single header, no external dependencies.
-// No dynamic memory allocations.
-//
+// LightWare LW20 API V0.5.0
+// Written by: Robert Gowans, rob@lightware.co.za
+//-------------------------------------------------------------------------
+
 // Supported LightWare Products:
-// Model: LW20 - FW: 1.0 - SW: 1.0 // TODO: Give warning about deprecated support.
+//-------------------------------------------------------------------------
 // Model: LW20 - FW: 2.0 - SW: 2.0 // Added stream character for streams
+
+// Features & Characteristics:
 //-------------------------------------------------------------------------
-//
-// Event based. Layered usage approach.
-//
+// - Support for Arduino, RaspberryPI, Windows & Linux. (8bit, 32bit, 64bit)
+// - Single header file library.
+// - Zero external dependencies.
+// - Zero dynamic memory allocations.
+// - Minimal C++ style.
+
+// How to use single file header only libraries:
 //-------------------------------------------------------------------------
+// You can include this file as normal when you would include any other 
+// header file. However, you need to define the implementation in one
+// C or C++ compilation unit file. You can do this with:
+// 
+// #define LW20_API_IMPLEMENTATION
+// #include "lw20api.h"
+
 
 #ifndef LIGHTWARE_INCLUDE_LW20API_H
 #define LIGHTWARE_INCLUDE_LW20API_H
 
 #define LW20_STREAM_CHANNEL_COUNT	5
-
-#define LW20_FORCE_MMI_MODE_CHAR	'`'
-#define LW20_FORCE_HMI_MODE_CHAR	'\0x1B'
 
 #define LW20_QUERY		"?"
 #define LW20_SET		"#"
@@ -987,7 +994,7 @@ lwEventLoopResult lw20PumpEventLoop(lwLW20* Lw20)
 		{
 			Lw20->state = LWIS_WAIT_MMI;
 			packetClear(packet);
-			packetWriteChar(packet, LW20_FORCE_MMI_MODE_CHAR);
+			packetWriteChar(packet, '`');
 			result.status = LWELR_SEND_PACKET;
 		}
 		else if (Lw20->state == LWIS_WAIT_MMI)

@@ -17,7 +17,7 @@
 #include <stdint.h>
 
 #define LW20_API_IMPLEMENTATION
-#include "lw20api.h"
+#include "../lw20api.h"
 
 struct lwSerialPort
 {
