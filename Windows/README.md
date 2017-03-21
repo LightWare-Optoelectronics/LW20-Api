@@ -9,7 +9,7 @@ Visit http://www.lightware.co.za for more information about the products we prov
 
 ## Building
 
-Use make to create the executable application.
+Run and build the Visual Studio project.
 
 ## License
 **Unlicense (http://unlicense.org) **
