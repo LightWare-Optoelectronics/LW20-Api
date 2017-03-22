@@ -23,70 +23,13 @@
 // 
 // #define LW20_API_IMPLEMENTATION
 // #include "lw20api.h"
-
+//-------------------------------------------------------------------------
 
 #ifndef LIGHTWARE_INCLUDE_LW20API_H
 #define LIGHTWARE_INCLUDE_LW20API_H
 
 #define LW20_STREAM_CHANNEL_COUNT	5
 
-#define LW20_QUERY		"?"
-#define LW20_SET		"#"
-#define LW20_STREAM		"$"
-#define LW20_SAVE		"%"
-#define LW20_TERMINAL	"\r"
-
-#define LW20_CMD_QUERY(ID)	(LW20_QUERY ID LW20_TERMINAL)
-#define LW20_CMD_SET(ID)	(LW20_SET ID LW20_TERMINAL)
-
-#define LW20_ID_PRODUCT						"p"
-
-#define LW20_ID_LASER_MODE					"lm"
-#define LW20_ID_LASER_FIRING				"lf"
-#define LW20_ID_LASER_TEMPERATURE			"lt"
-#define LW20_ID_LASER_BACKGROUND_NOISE		"ln"
-#define LW20_ID_LASER_DISTANCE_FIRST		"ldf"
-#define LW20_ID_LASER_DISTANCE_LAST			"ldl"
-#define LW20_ID_LASER_SIGNAL_STRENGTH_FIRST	"lhf"
-#define LW20_ID_LASER_SIGNAL_STRENGTH_LAST	"lhl"
-#define LW20_ID_LASER_OFFSET				"lo"
-#define LW20_ID_LASER_ALARM_A_DISTANCE		"laa"
-#define LW20_ID_LASER_ALARM_B_DISTANCE		"lab"
-#define LW20_ID_LASER_ALARM_HYSTERESIS		"lah"
-#define LW20_ID_LASER_ENCODING_PATTERN		"le"
-#define LW20_ID_LASER_LOST_CONFIRMATIONS	"lc"
-#define LW20_ID_LASER_GAIN_BOOT				"lb"
-
-#define LW20_ID_SERVO_CONNECTED				"sc"
-#define LW20_ID_SERVO_POSITION				"sp"
-#define LW20_ID_SERVO_LAG					"sl"
-#define LW20_ID_SERVO_STEPS					"sr"
-#define LW20_ID_SERVO_DIR					"st"
-#define LW20_ID_SERVO_SCAN					"ss"
-#define LW20_ID_SERVO_PWM_MIN				"swl"
-#define LW20_ID_SERVO_PWM_MAX				"swh"
-#define LW20_ID_SERVO_PWM_SCALE				"sws"
-#define LW20_ID_SERVO_FOV_LOW				"sfl"
-#define LW20_ID_SERVO_FOV_HIGH				"sfh"
-#define LW20_ID_SERVO_ALARM_A_LOW			"sal"
-#define LW20_ID_SERVO_ALARM_A_HIGH			"sah"
-#define LW20_ID_SERVO_ALARM_B_LOW			"sbl"
-#define LW20_ID_SERVO_ALARM_B_HIGH			"sbh"
-
-#define LW20_ID_ALARM_BOTH					"a"
-#define LW20_ID_ALARM_A						"aa"
-#define LW20_ID_ALARM_B						"ab"
-
-#define LW20_ID_COMS_BAUD_RATE  			"cb"
-#define LW20_ID_COMS_I2C_ADDRESS			"ci"
-#define LW20_ID_COMS_TAGGING				"ct"
-
-#define LW20_ID_ENERGY_POWER_CONSUMPTION	"e"
-
-//-------------------------------------------------------------------------
-// Define Public Types and Function Prototypes
-
-// LW20 Commands & Responses
 enum lwCommand
 {
 	LWC_NONE,
@@ -282,16 +225,6 @@ struct lwParser
 	int 				lexemeLength;
 };
 
-/*
-struct lwEventLoopUpdate
-{
-	lwLW20*				lw20;
-	lwCmdPacket			sendPacket;
-	lwResponsePacket*	responsePacket;
-	int32_t				timeMS;
-};
-*/
-
 struct lwResolvePacketResult
 {
 	lwResolvePacketStatus status;
@@ -460,7 +393,6 @@ bool expectNumber(lwParser* Parser, float* Number)
 		{
 			getNextChar(Parser);
 
-			// TODO: Can we make this a float?
 			double mul = 1;
 			part = 0;
 
@@ -864,7 +796,7 @@ void packetWriteLaserMode(lwCmdPacket* Packet, int ModeSpeed)
 	packetClear(Packet);
 	packetWriteString(Packet, "#lm,");
 	packetWriteInt(Packet, ModeSpeed);
-	packetWriteString(Packet, LW20_TERMINAL);
+	packetWriteString(Packet, "\r");
 	Packet->type = LWC_LASER_MODE;
 }
 
@@ -883,7 +815,7 @@ void packetWriteDistanceLast(lwCmdPacket* Packet)
 }
 
 //-------------------------------------------------------------------------
-// Layer 1.
+// Primary Functionality.
 //-------------------------------------------------------------------------
 
 lwLW20 lw20CreateLW20()
@@ -894,7 +826,6 @@ lwLW20 lw20CreateLW20()
 
 lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffer, int32_t BufferSize)
 {
-	// TODO: We don't report errors here yet.
 	lwResolvePacketResult result = {};
 
 	for (int i = 0; i < BufferSize; ++i)
@@ -1061,13 +992,6 @@ lwEventLoopResult lw20PumpEventLoop(lwLW20* Lw20)
 	return result;
 }
 
-//-------------------------------------------------------------------------
-// Layer 2 Blocking.
-//-------------------------------------------------------------------------
-
-// Sensor Context for data stores and communication callbacks.
-// Communication context? Data is input buffer, callbacks for read/write.
-
 typedef bool(*lw20SendPacketCallback)(lwLW20* Lw20, lwCmdPacket* Packet);
 typedef bool(*lw20GetPacketCallback)(lwLW20* Lw20, lwResponsePacket* Packet);
 typedef bool(*lw20SleepCallback)(lwLW20* Lw20, int32_t TimeMS);
@@ -1081,7 +1005,6 @@ struct lwServiceContext
 	lw20StreamCallback		streamCallback;
 };
 
-// Event Loop Execution
 bool runEventLoop(lwLW20* Lw20, lwServiceContext* Service, bool Streaming = false)
 {
 	while (true)
@@ -1122,7 +1045,6 @@ bool runEventLoop(lwLW20* Lw20, lwServiceContext* Service, bool Streaming = fals
 				}
 				else
 				{
-					//std::cout << "Completed Event Loop with Feedback\n";
 					return true;
 				}
 
@@ -1136,7 +1058,6 @@ bool runEventLoop(lwLW20* Lw20, lwServiceContext* Service, bool Streaming = fals
 				}
 				else
 				{
-					//std::cout << "Completed Event Loop\n";
 					return true;
 				}
 
@@ -1151,11 +1072,6 @@ void executeCommand(lwLW20* Lw20, lwServiceContext* Service, const char* Command
 	packetWriteString(&Lw20->command, Command);
 	Lw20->command.type = ResponseType;
 	runEventLoop(Lw20, Service);
-}
-
-void executeCommand(lwLW20* Lw20, lwServiceContext* Service, lwResponsePacket* Response)
-{
-
 }
 
 #endif
