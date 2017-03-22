@@ -1,11 +1,11 @@
-# LW20/SF20 API
+# LW20 / SF20 API
 Version 0.5.0
 
 ## About
 
 Visit [http://www.lightware.co.za](http://www.lightware.co.za) for more information about the products we provide.
 
-## Supported Products
+## Supported products
 
 * Model: LW20 - Firmware: 2.0 - Software: 2.1
 * Model: LW20 - Firmware: 2.0 - Software: 2.2
@@ -18,7 +18,7 @@ Most applications will already have some internal transport layer that they wish
 
 The primary API file is lw20api.h as located in the root directory of this repository. There are also Windows and Linux usage examples in their respective directories. The Arduino directory contains a wrapper that is ready to be loaded into the Arduino IDE as a library. See the README in each directory for more specific information.
 
-## Features & Characteristics
+## Features & characteristics
 
 * Support for Arduino, RaspberryPI, Windows & Linux. (8bit, 32bit, 64bit)
 * Single header file library.
@@ -43,7 +43,7 @@ You need to create an instance of lwLW20 before using most API functions. This o
 lwLW20 lw20 = lw20CreateLW20();
 ```
 
-### Simple Command Execution
+### Simple command execution
 
 You can execute commands directly and get a response with a single call. This is a blocking operation. By passing callbacks to your IO functions this layer will automatically manage the event loops.
 
@@ -63,7 +63,7 @@ You can then execute commands as follow:
 executeCommand_GetProduct(&lw20, &serviceContext);
 ```
 
-### Event Loop Execution
+### Event loop execution
 
 By passing callbacks to your IO functions this layer will automatically manage the event loops. You have control over when and how the loops execute, allowing you to capture streaming data.
 
@@ -74,17 +74,17 @@ packetWriteLaserMode(&lw20.command, LWMS_48);
 runEventLoop(&lw20, &serviceContext);
 ```
 
-### Custom Event Loop
+### Custom event loop
 
 The custom loop lets you build and manage responses from the event pump manually, giving exact control on where and how to implement blocking/non-blocking portions of code. The event system requires continuous pumping and easily integrates into various architectural designs. Every command executed requires an event pump cycle to be managed to completion. You should hit the pump until you get recevie a LWELR_COMPLETED Status.
 
 You can look at the implementation of runEventLoop in lw20api.h for examples on how to build your own.
 
-### Packet Writer & Resolver
+### Packet writer & resolver
 
 The lowest form of interacting with the sensor is writing and reading raw packets. You can use the packet write functions to build up commands that can be directly sent to the sensor over your transport layer. By feeding received data into the packet resolver you can reconstruct receveid packets with type and data.
 
-## Other Notes
+## Other notes
 
 When using the packet writer/resolver directly: After issuing a request you must wait for a response before issuing the next request.
 

@@ -1,4 +1,4 @@
-# LW20/SF20 Linux Example
+# LW20 / SF20 Linux example
 ## Overview
 
 This example shows how to use the LW20 API on Linux based platforms.

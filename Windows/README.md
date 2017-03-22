@@ -1,4 +1,4 @@
-# LW20/SF20 Windows Example
+# LW20 / SF20 Windows example
 ## Overview
 
 This example shows how to use the LW20 API on Windows based platforms.

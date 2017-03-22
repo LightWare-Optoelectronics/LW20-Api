@@ -1,4 +1,4 @@
-# LW20/SF20 Arduino API
+# LW20 / SF20 Arduino API
 ## Overview
 
 Platform dependant code for the Arduino.
