@@ -14,19 +14,19 @@ Visit [http://www.lightware.co.za](http://www.lightware.co.za) for more informat
 
 The layered structure of the API opens a variety of options for integration within your own application framework. You can select a single layer to work with, or use components from each that accomplish your goals.
 
-Most applications will already have some internal transport layer that they wish to use for communicating with external devices (Serial, TCP/UDP, etc). This API does not include a transport layer directly, however the Linux, Windows & Arduinio samples all include basic serial communication examples.
+Most applications will already have some internal transport layer that they wish to use for communicating with external devices (Serial, TCP / UDP, etc). This API does not include a transport layer directly, however the Linux, Windows & Arduinio samples all include basic serial communication examples.
 
 The primary API file is lw20api.h as located in the root directory of this repository. There are also Windows and Linux usage examples in their respective directories. The Arduino directory contains a wrapper that is ready to be loaded into the Arduino IDE as a library. See the README in each directory for more specific information.
 
 ## Features & characteristics
 
 * Support for Arduino, RaspberryPI, Windows & Linux. (8bit, 32bit, 64bit)
-* Single header file library.
-* Zero external dependencies.
-* Zero dynamic memory allocations.
-* Minimal C++ style.
+* Single header file library
+* Zero external dependencies
+* Zero dynamic memory allocations
+* Minimal C++ style
 
-## How to use single file header only libraries:
+## How to use single file header only libraries
 You can include this file as normal when you would include any other header file. However, you need to define the implementation in one C or C++ compilation unit file. You can do this with:
 ```c++
 #define LW20_API_IMPLEMENTATION
@@ -57,7 +57,7 @@ serviceContext.sleepCallback = sleep;
 serviceContext.streamCallback = streamResponse;
 ```
 
-You can then execute commands as follow:
+You can then execute commands as follows:
 
 ```c++
 executeCommand_GetProduct(&lw20, &serviceContext);
@@ -76,17 +76,17 @@ runEventLoop(&lw20, &serviceContext);
 
 ### Custom event loop
 
-The custom loop lets you build and manage responses from the event pump manually, giving exact control on where and how to implement blocking/non-blocking portions of code. The event system requires continuous pumping and easily integrates into various architectural designs. Every command executed requires an event pump cycle to be managed to completion. You should hit the pump until you get recevie a LWELR_COMPLETED Status.
+The custom loop lets you build and manage responses from the event pump manually, giving exact control on where and how to implement blocking / non-blocking portions of code. The event system requires continuous pumping and easily integrates into various architectural designs. Every command executed requires an event pump cycle to be managed to completion. You should hit the pump until you get recevie a LWELR_COMPLETED Status.
 
 You can look at the implementation of runEventLoop in lw20api.h for examples on how to build your own.
 
 ### Packet writer & resolver
 
-The lowest form of interacting with the sensor is writing and reading raw packets. You can use the packet write functions to build up commands that can be directly sent to the sensor over your transport layer. By feeding received data into the packet resolver you can reconstruct receveid packets with type and data.
+The lowest form of interacting with the sensor is writing and reading raw packets. You can use the packet write functions to build up commands that can be directly sent to the sensor over your transport layer. By feeding received data into the packet resolver you can reconstruct received packets with type and data.
 
 ## Other notes
 
-When using the packet writer/resolver directly: After issuing a request you must wait for a response before issuing the next request.
+When using the packet writer / resolver directly: After issuing a request you must wait for a response before issuing the next request.
 
 ## License
 **Unlicense (http://unlicense.org) **
