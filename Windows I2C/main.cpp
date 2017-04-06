@@ -1,5 +1,5 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 Windows Example
+// LightWare LW20 Windows I2C Example
 //-------------------------------------------------------------------------
 
 #include <iostream>
@@ -14,8 +14,6 @@ struct lwSensorContext
 {
 	lwLW20		lw20;
 	HANDLE		serialPort;
-	uint8_t		inputBuffer[128];
-	int32_t		inputBufferSize;
 };
 
 //-------------------------------------------------------------------------
@@ -151,14 +149,12 @@ int serialRead(HANDLE* Handle, uint8_t* Buffer, int32_t BufferSize)
 			}
 			else if (bytesRead > 0)
 			{
-				//std::cout << "Bytes read: " << bytesRead << "\n";
 				return bytesRead;
 			}
 		}
 	}
 	else if (bytesRead > 0)
 	{
-		//std::cout << "Bytes read: " << bytesRead << "\n";
 		return bytesRead;
 	}
 
@@ -167,76 +163,92 @@ int serialRead(HANDLE* Handle, uint8_t* Buffer, int32_t BufferSize)
 
 //-------------------------------------------------------------------------
 
-bool sendPacket(lwLW20* Lw20, lwCmdPacket* Packet)
+bool sendPacketI2C(lwLW20* Lw20, lwCmdPacket* Packet)
 {
-	//std::cout << "Send Packet " << Packet->length << "\n";
+	uint8_t data[256];
+
+	data[0] = 0x54;
+	data[1] = 0xCC;
+	data[2] = Packet->length;
+	memcpy(data + 3, Packet->buffer, Packet->length);
+
 	lwSensorContext* context = (lwSensorContext*)Lw20->userData;
-	if (serialWrite(&context->serialPort, Packet->buffer, Packet->length) != -1)
+	if (serialWrite(&context->serialPort, data, Packet->length + 3) != -1)
+	{
+		uint8_t recvBuf;
+		int result = 0;
+		while ((result = serialRead(&context->serialPort, &recvBuf, 1)) == 0);
+
+		if (result == -1)
+			return false;
+
 		return true;
+	}
 
 	return false;
 }
 
-bool getPacket(lwLW20* Lw20, lwResponsePacket* Packet)
+bool getPacketI2C(lwLW20* Lw20, lwResponsePacket* Packet)
 {
-	//std::cout << "Get Packet\n";
 	lwSensorContext* context = (lwSensorContext*)Lw20->userData;
 
-	// TODO: Timeout here.
+	uint8_t data[] = { 0x54, 0xCD, 32 };
+
 	while (true)
 	{
-		if (context->inputBufferSize == 0)
+		if (serialWrite(&context->serialPort, data, 3) == -1)
+			return false;
+
+		int bytesRead = 0;
+		uint8_t recvBuf[33] = {};
+		while ((bytesRead = serialRead(&context->serialPort, recvBuf, 32)) == 0);
+
+		if (bytesRead == -1)
 		{
-			int bytesRead = 0;
-			if ((bytesRead = serialRead(&context->serialPort, context->inputBuffer, sizeof(context->inputBuffer))) != -1)
-				context->inputBufferSize = bytesRead;
-			else
-				return false;
+			std::cout << "Read error\n";
+			return false;
 		}
-
-		lwResolvePacketResult packetResolve = lw20ResolvePacket(&context->lw20.response, context->inputBuffer, context->inputBufferSize);
-
-		// NOTE: You can use a circular buffer or so to avoid the shuffle.
-		if (packetResolve.bytesRead > 0)
+		else if (bytesRead == 32)
 		{
-			int32_t remaining = context->inputBufferSize - packetResolve.bytesRead;
-			for (int i = 0; i < remaining; ++i)
-				context->inputBuffer[i] = context->inputBuffer[packetResolve.bytesRead + i];
+			if (recvBuf[0] != 0)
+			{
+				for (int i = 0; i < 33; ++i)
+				{
+					if (recvBuf[i] == 0)
+					{
+						recvBuf[i] = '\r';
+						break;
+					}
+				}
 
-			context->inputBufferSize = remaining;
+				context->lw20.response.data.length = 0;
+				lwResolvePacketResult packetResolve = lw20ResolvePacket(&context->lw20.response, recvBuf, 33);
+
+				if (packetResolve.status == LWRPS_COMPLETE)
+				{
+					return true;
+				}
+				else
+				{
+					context->lw20.response.data.length = 0;
+					std::cout << "Packet Error\n";
+					return false;
+				}
+			}
 		}
-		
-		if (packetResolve.status == LWRPS_COMPLETE)
+		else
 		{
-			//std::cout << "Got packet " << Packet->type << "\n";
-			return true;
+			std::cout << "Expected 32 bytes in single read\n";
+			return false;
 		}
 	}
 
-	return true;
+	return false;
 }
 
 bool sleep(lwLW20* Lw20, int32_t TimeMS)
 {
 	Sleep(TimeMS);
-	return true;
-};
-
-bool streamResponse(lwLW20* Lw20, lwResponsePacket* Packet)
-{
-	if (Packet->type == LWC_SERVO_SCAN)
-	{
-		std::cout << "Scan: " << Packet->scanSample.angle << " " << Packet->scanSample.firstPulse << " " << Packet->scanSample.lastPulse << "\n";
-	}
-	else if (Packet->type == LWC_SERVO_POSITION)
-	{
-		std::cout << "Pos: " << Packet->floatValue << "\n";
-	}
-	else if (Packet->type == LWC_LASER_TEMPERATURE)
-	{
-		std::cout << "Temp: " << Packet->floatValue << "\n";
-	}
-
 	return true;
 };
 
@@ -250,13 +262,13 @@ int main()
 	lwSensorContext context = {};
 	context.lw20 = lw20CreateLW20();
 	context.lw20.userData = &context;
-	serialConnect(&context.serialPort, "\\\\.\\COM4", 115200);
+	serialConnect(&context.serialPort, "\\\\.\\COM3", 115200);
 
 	lwServiceContext serviceContext = {};
-	serviceContext.sendPacketCallback = sendPacket;
-	serviceContext.getPacketCallback = getPacket;
+	serviceContext.sendPacketCallback = sendPacketI2C;
+	serviceContext.getPacketCallback = getPacketI2C;
 	serviceContext.sleepCallback = sleep;
-	serviceContext.streamCallback = streamResponse;
+	serviceContext.streamCallback = NULL;
 
 	// NOTE: Run event loop for first time init.
 	runEventLoop(&context.lw20, &serviceContext);
@@ -269,11 +281,14 @@ int main()
 	packetWriteLaserMode(&context.lw20.command, LWMS_48);
 	runEventLoop(&context.lw20, &serviceContext);
 
-	executeCommand(&context.lw20, &serviceContext, "$1lt\r", LWC_STREAM_1);
-	executeCommand(&context.lw20, &serviceContext, "$2ss\r", LWC_STREAM_2);
+	while (true)
+	{
+		packetWriteDistanceFirst(&context.lw20.command);
+		runEventLoop(&context.lw20, &serviceContext);
 
-	// NOTE: Stuck here infinitely.
-	runEventLoop(&context.lw20, &serviceContext, true);
+		if (context.lw20.response.type == LWC_LASER_DISTANCE_FIRST)
+			std::cout << "Distance: " << context.lw20.response.floatValue << "\n";
+	}
 
 	serialDisconnect(&context.serialPort);
 	
