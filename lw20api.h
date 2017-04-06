@@ -36,6 +36,7 @@ enum lwCommand
 	LWC_NO_RESPONSE,
 
 	LWC_STREAM_CLEAR,
+
 	LWC_STREAM_1,
 	LWC_STREAM_2,
 	LWC_STREAM_3,
@@ -828,6 +829,12 @@ lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffe
 {
 	lwResolvePacketResult result = {};
 
+	if (Packet->type != LWC_NONE)
+	{
+		Packet->type = LWC_NONE;
+		Packet->data.length = 0;
+	}
+
 	for (int i = 0; i < BufferSize; ++i)
 	{
 		result.bytesRead++;
@@ -843,6 +850,7 @@ lwResolvePacketResult lw20ResolvePacket(lwResponsePacket* Packet, uint8_t* Buffe
 			{
 				if (parseResponse(Packet))
 				{
+					Packet->data.length = 0;
 					result.status = LWRPS_COMPLETE;
 				}
 				else
