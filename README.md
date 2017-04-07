@@ -1,5 +1,5 @@
 # LW20 / SF20 API
-Version 0.5.0
+Version 0.7.0
 
 ## About
 
