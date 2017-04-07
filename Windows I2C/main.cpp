@@ -273,17 +273,17 @@ int main()
 	// NOTE: Run event loop for first time init.
 	runEventLoop(&context.lw20, &serviceContext);
 	
-	executeCommand(&context.lw20, &serviceContext, "?\r", LWC_PRODUCT);
+	executeCmd_GetProduct(&context.lw20, &serviceContext);
 
 	if (context.lw20.response.type == LWC_PRODUCT)
 		std::cout << "Product: " << context.lw20.response.product.model << "\n";
 
-	packetWriteLaserMode(&context.lw20.command, LWMS_48);
+	packetWrite_SetLaserMode(&context.lw20.command, LWMS_48);
 	runEventLoop(&context.lw20, &serviceContext);
 
 	while (true)
 	{
-		packetWriteDistanceFirst(&context.lw20.command);
+		packetWrite_GetLaserDistanceFirst(&context.lw20.command);
 		runEventLoop(&context.lw20, &serviceContext);
 
 		if (context.lw20.response.type == LWC_LASER_DISTANCE_FIRST)
