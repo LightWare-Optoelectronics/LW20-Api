@@ -1,5 +1,5 @@
 # LW20 / SF20 API
-Version 0.7.0
+Version 0.7.1
 
 ## About
 
@@ -7,8 +7,9 @@ Visit [http://www.lightware.co.za](http://www.lightware.co.za) for more informat
 
 ## Supported products
 
-* Model: LW20 - Firmware: 2.0 - Software: 2.1
+* Model: LW20 - Firmware: 2.0 - Software: 2.4
 * Model: LW20 - Firmware: 2.0 - Software: 2.2
+* Model: LW20 - Firmware: 2.0 - Software: 2.1
 
 ## Overview
 
