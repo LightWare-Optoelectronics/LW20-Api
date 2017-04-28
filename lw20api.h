@@ -1,5 +1,5 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 API V0.7.0
+// LightWare LW20 API V0.7.1
 // Written by: Robert Gowans, rob@lightware.co.za
 //-------------------------------------------------------------------------
 
@@ -506,9 +506,6 @@ bool parseResponseFloat(lwParser* Parser, const char* ResponseString, float* Res
 
 bool parseResponse(lwResponsePacket* Packet)
 {
-	// NOTE: Parsing is a finite automata using direct evalutation of the incoming data.
-	// This is useful for performance constrained platforms when parsing large loads of data.
-
 	lwParser parser = {};
 	parser.packetBuf = Packet->data.buffer;
 	parser.packetLen = Packet->data.length;
@@ -957,7 +954,10 @@ void packetWriteDigits(lwCmdPacket* Packet, int32_t Number)
 void packetWriteFloat(lwCmdPacket* Packet, float Number)
 {
 	if (Number < 0)
+	{
 		packetWriteChar(Packet, '-');
+		Number = -Number;
+	}
 
 	int32_t whole = (int32_t)Number;
 	int32_t frac = (int32_t)((Number - (float)whole) * 100.0f);
@@ -1751,6 +1751,14 @@ bool runEventLoop(lwLW20* Lw20, lwServiceContext* Service, bool Streaming = fals
 			} break;
 		};
 	}
+}
+
+void executeCommand(lwLW20* Lw20, lwServiceContext* Service, const char* Command, lwCommand ResponseType)
+{
+	packetClear(&Lw20->command);
+	packetWriteString(&Lw20->command, Command);
+	Lw20->command.type = ResponseType;
+	runEventLoop(Lw20, Service);
 }
 
 lwProductInfo executeCmd_GetProduct(lwLW20* Lw20, lwServiceContext* Service)

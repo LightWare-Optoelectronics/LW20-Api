@@ -65,8 +65,6 @@ bool serialDisconnect(lwSerialPort* ComPort)
 
 bool serialConnect(lwSerialPort* ComPort, const char* Name, int BitRate)
 {
-	serialDisconnect(ComPort);
-
 	int fd = -1;
 	printf("Attempt com connection: %s\n", Name);
 		
@@ -257,19 +255,16 @@ int main(int args, char **argv)
 	// NOTE: Run event loop for first time init.
 	runEventLoop(&context.lw20, &serviceContext);
 
-	executeCommand(&context.lw20, &serviceContext, "?\r", LWC_PRODUCT);
+	lwProductInfo productInfo = executeCmd_GetProduct(&context.lw20, &serviceContext);
+	std::cout << "Product: " << context.lw20.response.product.model << "\n";
 
-	if (context.lw20.response.type == LWC_PRODUCT)
-		std::cout << "Product: " << context.lw20.response.product.model << "\n";
+	executeCmd_SetLaserMode(&context.lw20, &serviceContext, LWMS_48);
 
-	packetWriteLaserMode(&context.lw20.command, LWMS_48);
-	runEventLoop(&context.lw20, &serviceContext);
-
-	executeCommand(&context.lw20, &serviceContext, "$1lt\r", LWC_STREAM_1);
-	executeCommand(&context.lw20, &serviceContext, "$2ss\r", LWC_STREAM_2);
-
-	// NOTE: Stuck here indefinitely.
-	runEventLoop(&context.lw20, &serviceContext, true);
+	while (true)
+	{
+		float distance = executeCmd_GetLaserDistanceFirst(&context.lw20, &serviceContext);
+		std::cout << "Distance: " << distance << "\n";
+	}
 
 	serialDisconnect(&context.serialPort);
 
