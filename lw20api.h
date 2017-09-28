@@ -1,11 +1,7 @@
 //-------------------------------------------------------------------------
-// LightWare LW20 API V0.7.1
+// LightWare LW20 API V0.7.2
 // Written by: Robert Gowans, rob@lightware.co.za
 //-------------------------------------------------------------------------
-
-// Supported LightWare Products:
-//-------------------------------------------------------------------------
-// Model: LW20 - FW: 2.0 - SW: 2.0 // Added stream character for streams
 
 // Features & Characteristics:
 //-------------------------------------------------------------------------
@@ -216,6 +212,7 @@ struct lwResponsePacket
 	lwCmdPacket			data;
 	lwCommand 			type;
 	bool				streaming;
+	int32_t				filterType;
 	
 	union 
 	{
@@ -521,8 +518,8 @@ bool parseResponse(lwResponsePacket* Packet)
 	if (identSize == 0)
 		return false;
 
-	// Identify streaming packets vs stream channel responses.
-	if (identBuf[0] == '$' && !(identBuf[1] >= '0' && identBuf[1] <= '9'))
+	// Identify streaming packets vs stream channel responses, and clear streaming channel response.
+	if (identBuf[0] == '$' && !(identBuf[1] >= '0' && identBuf[1] <= '9') && identSize != 1)
 	{
 		--identSize;
 		identBuf = identifierBuffer + 1;
@@ -822,10 +819,8 @@ bool parseResponse(lwResponsePacket* Packet)
 					if (identBuf[2] == 'f') Packet->type = LWC_LASER_DISTANCE_FIRST;
 					else if (identBuf[2] == 'l') Packet->type = LWC_LASER_DISTANCE_LAST;
 
-					int32_t filterType = 0;
-
 					if (!expectParamDelimeter(&parser)) return false;
-					if (!expectNumber(&parser, &filterType)) return false;
+					if (!expectNumber(&parser, &Packet->filterType)) return false;
 					if (!expectPacketDelimeter(&parser)) return false;
 					if (!expectNumber(&parser, &Packet->floatValue)) return false;
 
