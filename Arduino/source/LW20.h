@@ -37,8 +37,8 @@ public:
 	float getLaserDistanceLast();	
 	float getLaserDistance(lwPulseType Pulse, lwReturnFilter Filter);
 	
-	float getLaserSignalStrengthFirst();	
-	float getLaserSignalStrengthLast();
+	int getLaserSignalStrengthFirst();	
+	int getLaserSignalStrengthLast();
 	
 	float getLaserOffset();
 	void setLaserOffset(float Offset);

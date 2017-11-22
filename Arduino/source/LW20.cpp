@@ -144,12 +144,12 @@ float LW20::getLaserDistance(lwPulseType Pulse, lwReturnFilter Filter)
 	return executeCmd_GetLaserDistance(&lw20, &serviceContext, Pulse, Filter);
 }
 
-float LW20::getLaserSignalStrengthFirst()
+int LW20::getLaserSignalStrengthFirst()
 {
 	return executeCmd_GetLaserSignalStrengthFirst(&lw20, &serviceContext);
 }
 
-float LW20::getLaserSignalStrengthLast()
+int LW20::getLaserSignalStrengthLast()
 {
 	return executeCmd_GetLaserSignalStrengthLast(&lw20, &serviceContext);
 }
