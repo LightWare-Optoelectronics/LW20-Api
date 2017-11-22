@@ -1784,23 +1784,23 @@ float executeCmd_GetLaserDistance(lwLW20* Lw20, lwServiceContext* Service, lwPul
 	return Lw20->response.floatValue;
 }
 
-float executeCmd_GetLaserSignalStrengthFirst(lwLW20* Lw20, lwServiceContext* Service)
+int executeCmd_GetLaserSignalStrengthFirst(lwLW20* Lw20, lwServiceContext* Service)
 {	
 	packetWrite_GetLaserSignalStrengthFirst(&Lw20->command);
 	runEventLoop(Lw20, Service);
-	return Lw20->response.floatValue;
+	return Lw20->response.intValue;
 }
 
-float executeCmd_GetLaserSignalStrengthLast(lwLW20* Lw20, lwServiceContext* Service)
+int executeCmd_GetLaserSignalStrengthLast(lwLW20* Lw20, lwServiceContext* Service)
 {	
 	packetWrite_GetLaserSignalStrengthLast(&Lw20->command);
 	runEventLoop(Lw20, Service);
-	return Lw20->response.floatValue;
+	return Lw20->response.intValue;
 }
 
 float executeCmd_GetLaserOffset(lwLW20* Lw20, lwServiceContext* Service)
 {	
-	packetWrite_GetLaserSignalStrengthLast(&Lw20->command);
+	packetWrite_GetLaserOffset(&Lw20->command);
 	runEventLoop(Lw20, Service);
 	return Lw20->response.floatValue;
 }
