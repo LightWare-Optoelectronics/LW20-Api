@@ -240,7 +240,7 @@ bool streamResponse(lwLW20* Lw20, lwResponsePacket* Packet)
 int main(int args, char **argv)
 {
 	std::cout << "LW20 Api\n";
-
+	
 	lwSensorContext context = {};
 	context.lw20 = lw20CreateLW20();
 	context.lw20.userData = &context;
@@ -256,7 +256,10 @@ int main(int args, char **argv)
 	runEventLoop(&context.lw20, &serviceContext);
 
 	lwProductInfo productInfo = executeCmd_GetProduct(&context.lw20, &serviceContext);
-	std::cout << "Product: " << context.lw20.response.product.model << "\n";
+	std::cout << "Product: " << context.lw20.response.product.model
+		<< " Hardware: V" << context.lw20.response.product.hardwareVersion 
+		<< " Firmware V" << context.lw20.response.product.firmwareVersion 
+		<< "\n";
 
 	executeCmd_SetLaserMode(&context.lw20, &serviceContext, LWMS_48);
 

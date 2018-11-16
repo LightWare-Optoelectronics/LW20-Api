@@ -189,8 +189,8 @@ struct lwAlarmState
 struct lwProductInfo
 {
 	char				model[8];
-	float				firmwareVersion;
-	float 				softwareVersion;
+	char				firmwareVersion[8];
+	int32_t				hardwareVersion;
 };
 
 struct lwScanSample
@@ -544,9 +544,9 @@ bool parseResponse(lwResponsePacket* Packet)
 			if (!expectPacketDelimeter(&parser)) return false;
 			if (!expectIdentifier(&parser, Packet->product.model, 8)) return false;
 			if (!expectParamDelimeter(&parser)) return false;
-			if (!expectNumber(&parser, &Packet->product.softwareVersion)) return false;
+			if (!expectIdentifier(&parser, Packet->product.firmwareVersion, 8)) return false;
 			if (!expectParamDelimeter(&parser)) return false;
-			if (!expectNumber(&parser, &Packet->product.firmwareVersion)) return false;
+			if (!expectNumber(&parser, &Packet->product.hardwareVersion)) return false;
 
 			return true;
 		}
