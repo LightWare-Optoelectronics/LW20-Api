@@ -1,4 +1,4 @@
-#include "lw20.h"
+#include "LW20.h"
 #define LW20_API_IMPLEMENTATION
 #include "lw20api.h"
 
